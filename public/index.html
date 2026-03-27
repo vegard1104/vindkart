@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vindkart â Sogn</title>
+    <title>Vindkart — Sogn</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <style>
@@ -14,7 +14,7 @@
         }
         #map { width: 100%; height: 100vh; }
 
-        /* ââ Controls Panel ââ */
+        /* ── Controls Panel ── */
         .controls {
             position: absolute; top: 16px; right: 16px; z-index: 1000;
             background: rgba(26, 26, 46, 0.92); backdrop-filter: blur(12px);
@@ -28,7 +28,7 @@
         .control-group .value { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px; }
         .control-group .unit { font-size: 13px; color: #7ec8e3; font-weight: 400; }
 
-        /* ââ Date selector ââ */
+        /* ── Date selector ── */
         .date-row { display: flex; gap: 8px; margin-bottom: 16px; }
         .date-btn {
             flex: 1; padding: 8px 6px; border: 1px solid rgba(126,200,227,0.3);
@@ -38,7 +38,7 @@
         .date-btn:hover { background: rgba(126,200,227,0.1); color: #fff; }
         .date-btn.active { background: rgba(126,200,227,0.2); color: #7ec8e3; border-color: #7ec8e3; }
 
-        /* ââ Sliders ââ */
+        /* ── Sliders ── */
         input[type="range"] {
             -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px;
             background: #2a2a4a; outline: none; cursor: pointer;
@@ -48,7 +48,7 @@
             background: #7ec8e3; border: 2px solid #fff; cursor: pointer;
         }
 
-        /* ââ Wind info box ââ */
+        /* ── Wind info box ── */
         .wind-info {
             background: rgba(126, 200, 227, 0.1); border-radius: 10px; padding: 14px;
             border: 1px solid rgba(126, 200, 227, 0.2);
@@ -58,7 +58,7 @@
         .wind-info .label { color: #888; font-size: 13px; }
         .wind-info .val { color: #fff; font-size: 13px; font-weight: 600; }
 
-        /* ââ Beaufort bar ââ */
+        /* ── Beaufort bar ── */
         .beaufort-bar {
             margin-top: 12px; background: #2a2a4a; border-radius: 6px; height: 8px;
             overflow: hidden; position: relative;
@@ -68,7 +68,7 @@
         }
         .beaufort-label { font-size: 11px; color: #888; margin-top: 4px; }
 
-        /* ââ Loading overlay ââ */
+        /* ── Loading overlay ── */
         .loading-overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             z-index: 2000; background: rgba(26,26,46,0.95);
@@ -87,7 +87,7 @@
         }
         .loading-box .retry-btn:hover { background: rgba(126,200,227,0.15); }
 
-        /* ââ Legend ââ */
+        /* ── Legend ── */
         .legend {
             position: absolute; bottom: 20px; left: 16px; z-index: 1000;
             background: rgba(26, 26, 46, 0.9); backdrop-filter: blur(8px);
@@ -103,7 +103,7 @@
             padding: 2px 8px; border-radius: 4px; margin-top: 10px;
         }
 
-        /* ââ Responsive ââ */
+        /* ── Responsive ── */
         @media (max-width: 600px) {
             .controls { width: calc(100% - 32px); right: 16px; top: 10px; padding: 14px 16px; }
         }
@@ -115,7 +115,7 @@
             <div class="spinner" id="spinner"></div>
             <div id="loadingText">Henter vinddata fra Open-Meteo...</div>
             <div class="error" id="errorText" style="display:none;"></div>
-            <button class="retry-btn" id="retryBtn" style="display:none;" onclick="loadData()">PrÃ¸v igjen</button>
+            <button class="retry-btn" id="retryBtn" style="display:none;" onclick="loadData()">Prøv igjen</button>
         </div>
     </div>
 
@@ -123,7 +123,7 @@
 
     <div class="controls">
         <h2>Vindkart</h2>
-        <div class="subtitle" id="locationSubtitle">61.032Â°N, 7.309Â°E â Sogn</div>
+        <div class="subtitle" id="locationSubtitle">61.032°N, 7.309°E — Sogn</div>
 
         <!-- Date buttons -->
         <div class="date-row" id="dateRow"></div>
@@ -141,10 +141,10 @@
         </div>
 
         <div class="wind-info">
-            <div class="row"><span class="label">Vindretning</span><span class="val" id="wDir">â</span></div>
-            <div class="row"><span class="label">Vindhastighet</span><span class="val" id="wSpeed">â</span></div>
-            <div class="row"><span class="label">Vindkast</span><span class="val" id="wGust">â</span></div>
-            <div class="row"><span class="label">Vinden fra</span><span class="val" id="wFrom">â</span></div>
+            <div class="row"><span class="label">Vindretning</span><span class="val" id="wDir">—</span></div>
+            <div class="row"><span class="label">Vindhastighet</span><span class="val" id="wSpeed">—</span></div>
+            <div class="row"><span class="label">Vindkast</span><span class="val" id="wGust">—</span></div>
+            <div class="row"><span class="label">Vinden fra</span><span class="val" id="wFrom">—</span></div>
             <div class="beaufort-bar"><div class="beaufort-fill" id="beaufortFill"></div></div>
             <div class="beaufort-label" id="beaufortLabel"></div>
         </div>
@@ -154,26 +154,26 @@
     <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Senterpunkt</div>
         <div class="legend-item"><div class="legend-dot" style="background:#7ec8e3;"></div> Svak vind (&lt;5 m/s)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> Lett bris (5â8 m/s)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div> Frisk bris (8â14 m/s)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> Lett bris (5–8 m/s)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div> Frisk bris (8–14 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Kuling+ (&gt;14 m/s)</div>
     </div>
 
     <script>
-    // âââ CONFIG âââ
+    // ─── CONFIG ───
     const DEFAULT_LAT = 61.03219;
     const DEFAULT_LNG = 7.30878;
     const FORECAST_DAYS = 3;
 
-    // âââ STATE âââ
-    let allData = {};       // { "2026-03-28": [ {hour, dir, speed, gust}, ... ] }
-    let dates = [];         // sorted list of date strings
+    // ─── STATE ───
+    let allData = {};
+    let dates = [];
     let selectedDate = '';
     let currentHour = 12;
     let currentDist = 1.0;
     let arrowMarkers = [];
 
-    // âââ MAP SETUP âââ
+    // ─── MAP SETUP ───
     const map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LNG], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap | Vind: Open-Meteo',
@@ -184,7 +184,7 @@
         radius: 8, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 0.9, weight: 2
     }).addTo(map).bindPopup('<b>Senterpunkt</b><br>61&deg;01\'55.9"N 7&deg;18\'31.6"E');
 
-    // âââ API âââ
+    // ─── API ───
     async function fetchFromOpenMeteo() {
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${DEFAULT_LAT}&longitude=${DEFAULT_LNG}` +
             `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
@@ -200,7 +200,7 @@
         const h = json.hourly;
         const result = {};
         for (let i = 0; i < h.time.length; i++) {
-            const dt = h.time[i].substring(0, 10); // "2026-03-28"
+            const dt = h.time[i].substring(0, 10);
             const hour = parseInt(h.time[i].substring(11, 13));
             if (!result[dt]) result[dt] = [];
             result[dt].push({
@@ -230,7 +230,7 @@
             const json = await fetchFromOpenMeteo();
             allData = parseApiData(json);
             dates = Object.keys(allData).sort();
-            selectedDate = dates.length > 1 ? dates[1] : dates[0]; // default to tomorrow
+            selectedDate = dates.length > 1 ? dates[1] : dates[0];
             buildDateButtons();
             loading.style.display = 'none';
             updateDisplay();
@@ -244,9 +244,9 @@
         }
     }
 
-    // âââ DATE BUTTONS âââ
+    // ─── DATE BUTTONS ───
     function formatDateShort(dateStr) {
-        const days = ['sÃ¸n','man','tir','ons','tor','fre','lÃ¸r'];
+        const days = ['søn','man','tir','ons','tor','fre','lør'];
         const d = new Date(dateStr + 'T12:00:00');
         const dayName = days[d.getDay()];
         const day = d.getDate();
@@ -271,11 +271,11 @@
         });
     }
 
-    // âââ HELPERS âââ
+    // ─── HELPERS ───
     function degToRad(deg) { return deg * Math.PI / 180; }
 
     function directionName(deg) {
-        const dirs = ['N','NNÃ','NÃ','ÃNÃ','Ã','ÃSÃ','SÃ','SSÃ','S','SSV','SV','VSV','V','VNV','NV','NNV'];
+        const dirs = ['N','NNØ','NØ','ØNØ','Ø','ØSØ','SØ','SSØ','S','SSV','SV','VSV','V','VNV','NV','NNV'];
         return dirs[Math.round(deg / 22.5) % 16];
     }
 
@@ -325,9 +325,9 @@
                 </g>
             </svg>`;
         return L.divIcon({ html: svg, iconSize: [size, size], iconAnchor: [size/2, size/2], className: '' });
-    }
+        }
 
-    // âââ DISPLAY âââ
+    // ─── DISPLAY ───
     function updateDisplay() {
         const dayData = allData[selectedDate];
         if (!dayData) return;
@@ -338,7 +338,7 @@
         // Update panel
         document.getElementById('timeDisplay').textContent = String(currentHour).padStart(2,'0') + ':00';
         document.getElementById('distDisplay').textContent = currentDist.toFixed(1);
-        document.getElementById('wDir').textContent = `${Math.round(dir)}Â°`;
+        document.getElementById('wDir').textContent = `${Math.round(dir)}°`;
         document.getElementById('wSpeed').textContent = `${speed.toFixed(1)} m/s`;
         document.getElementById('wGust').textContent = `${gust.toFixed(1)} m/s`;
         document.getElementById('wFrom').textContent = directionName(dir);
@@ -348,7 +348,7 @@
         const fill = document.getElementById('beaufortFill');
         fill.style.width = pct + '%';
         fill.style.background = windColor(speed);
-        document.getElementById('beaufortLabel').textContent = `Beaufort ${bf.level} â ${bf.name}`;
+        document.getElementById('beaufortLabel').textContent = `Beaufort ${bf.level} — ${bf.name}`;
 
         // Clear arrows
         arrowMarkers.forEach(m => map.removeLayer(m));
@@ -356,7 +356,7 @@
 
         const popup = (extra = '') =>
             `<b>${formatDateShort(selectedDate)} kl ${String(currentHour).padStart(2,'0')}:00</b><br>` +
-            `Vind: ${speed.toFixed(1)} m/s fra ${directionName(dir)} (${Math.round(dir)}Â°)<br>` +
+            `Vind: ${speed.toFixed(1)} m/s fra ${directionName(dir)} (${Math.round(dir)}°)<br>` +
             `Kast: ${gust.toFixed(1)} m/s<br>${bf.name} (Bf ${bf.level})${extra}`;
 
         // Outer ring
@@ -387,7 +387,7 @@
         }
     }
 
-    // âââ EVENTS âââ
+    // ─── EVENTS ───
     document.getElementById('timeSlider').addEventListener('input', e => {
         currentHour = parseInt(e.target.value);
         updateDisplay();
@@ -397,7 +397,7 @@
         updateDisplay();
     });
 
-    // âââ START âââ
+    // ─── START ───
     loadData();
     </script>
 </body>
