@@ -11,81 +11,47 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a1a; color: #e0e0e0; }
         #map { width: 100%; height: 100vh; }
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 450; pointer-events: none; }
-
-        .controls {
-            position: absolute; top: 16px; right: 16px; z-index: 1000;
-            background: rgba(10, 10, 26, 0.88); backdrop-filter: blur(16px);
-            border-radius: 16px; padding: 20px 22px; width: 320px;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(126,200,227,0.12);
-        }
+        .controls { position: absolute; top: 16px; right: 16px; z-index: 1000; background: rgba(10, 10, 26, 0.88); backdrop-filter: blur(16px); border-radius: 16px; padding: 20px 22px; width: 320px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(126,200,227,0.12); }
         .controls h2 { font-size: 20px; font-weight: 700; color: #7ec8e3; margin-bottom: 2px; letter-spacing: -0.3px; }
         .controls .subtitle { font-size: 11px; color: #666; margin-bottom: 14px; }
-
         .date-scroll { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: #333 transparent; }
         .date-scroll::-webkit-scrollbar { height: 4px; }
         .date-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-        .date-btn {
-            flex-shrink: 0; padding: 6px 10px; border: 1px solid rgba(126,200,227,0.15);
-            background: transparent; color: #777; border-radius: 8px; cursor: pointer;
-            font-size: 12px; transition: all 0.2s; white-space: nowrap;
-        }
+        .date-btn { flex-shrink: 0; padding: 6px 10px; border: 1px solid rgba(126,200,227,0.15); background: transparent; color: #777; border-radius: 8px; cursor: pointer; font-size: 12px; transition: all 0.2s; white-space: nowrap; }
         .date-btn:hover { background: rgba(126,200,227,0.08); color: #ccc; }
         .date-btn.active { background: rgba(126,200,227,0.15); color: #7ec8e3; border-color: rgba(126,200,227,0.4); font-weight: 600; }
-
         .control-group { margin-bottom: 14px; }
         .control-group label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         .control-group .value { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 4px; }
         .control-group .unit { font-size: 12px; color: #7ec8e3; font-weight: 400; }
-
-        input[type="range"] {
-            -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px;
-            background: linear-gradient(90deg, #1a1a3e, #2a2a5a); outline: none; cursor: pointer;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
-            background: #7ec8e3; border: 2px solid #fff; cursor: pointer;
-            box-shadow: 0 0 8px rgba(126,200,227,0.4);
-        }
-
-        .wind-info {
-            background: rgba(126,200,227,0.06); border-radius: 12px; padding: 12px 14px;
-            border: 1px solid rgba(126,200,227,0.1);
-        }
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #1a1a3e, #2a2a5a); outline: none; cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #7ec8e3; border: 2px solid #fff; cursor: pointer; box-shadow: 0 0 8px rgba(126,200,227,0.4); }
+        .wind-info { background: rgba(126,200,227,0.06); border-radius: 12px; padding: 12px 14px; border: 1px solid rgba(126,200,227,0.1); }
         .wind-info .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .wind-info .row:last-child { margin-bottom: 0; }
         .wind-info .label { color: #666; font-size: 12px; }
         .wind-info .val { color: #fff; font-size: 12px; font-weight: 600; }
-
         .beaufort-bar { margin-top: 10px; background: #151530; border-radius: 4px; height: 6px; overflow: hidden; }
         .beaufort-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease, background 0.4s ease; }
         .beaufort-label { font-size: 10px; color: #555; margin-top: 3px; }
-
-        .speed-gradient {
-            margin-top: 10px; height: 6px; border-radius: 3px;
-            background: linear-gradient(90deg, #4a9ebe, #2ecc71, #f1c40f, #e67e22, #e74c3c, #8e44ad);
-        }
+        .speed-gradient { margin-top: 10px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #4a9ebe, #2ecc71, #f1c40f, #e67e22, #e74c3c, #8e44ad); }
         .speed-labels { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
-
         .particle-toggle { margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #888; }
         .toggle-switch { width: 36px; height: 20px; background: #222; border-radius: 10px; position: relative; cursor: pointer; transition: background 0.3s; }
         .toggle-switch.on { background: rgba(126,200,227,0.3); }
         .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #555; border-radius: 50%; transition: all 0.3s; }
         .toggle-switch.on::after { left: 18px; background: #7ec8e3; }
-
         .api-badge { display: inline-block; font-size: 9px; color: #444; padding: 2px 6px; border-radius: 3px; margin-top: 8px; }
-
         .loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: rgba(10,10,26,0.97); display: flex; align-items: center; justify-content: center; }
         .loading-box { text-align: center; color: #7ec8e3; }
         .loading-box .spinner { width: 40px; height: 40px; border: 3px solid #151530; border-top-color: #7ec8e3; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading-box .error { color: #e74c3c; margin-top: 10px; font-size: 12px; }
         .loading-box .retry-btn { margin-top: 12px; padding: 8px 20px; border: 1px solid #7ec8e3; background: transparent; color: #7ec8e3; border-radius: 8px; cursor: pointer; font-size: 13px; }
-
         .legend { position: absolute; bottom: 20px; left: 16px; z-index: 1000; background: rgba(10,10,26,0.88); backdrop-filter: blur(8px); border-radius: 10px; padding: 10px 14px; font-size: 11px; border: 1px solid rgba(126,200,227,0.08); }
         .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; color: #888; }
         .legend-item:last-child { margin-bottom: 0; }
         .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
-
         @media (max-width: 600px) { .controls { width: calc(100% - 32px); right: 16px; top: 10px; padding: 14px 14px; } }
     </style>
 </head>
@@ -98,10 +64,8 @@
             <button class="retry-btn" id="retryBtn" style="display:none;" onclick="loadData()">Prøv igjen</button>
         </div>
     </div>
-
     <div id="map"></div>
     <canvas id="windCanvas"></canvas>
-
     <div class="controls">
         <h2>Vindkart</h2>
         <div class="subtitle" id="locationSubtitle">61.032°N, 7.309°E — Sogn</div>
@@ -132,20 +96,18 @@
         </div>
         <div class="api-badge">Kilde: Open-Meteo (MET Norway)</div>
     </div>
-
     <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Senterpunkt</div>
         <div class="legend-item"><div class="legend-dot" style="background:#4a9ebe;"></div> Svak vind (<5 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> Lett bris (5–8 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#f1c40f;"></div> Frisk bris (8–14 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Kuling+ (>14 m/s)</div>
-                                                                                                                </div>
+                                                                                         </div>
 
     <script>
     const DEFAULT_LAT = 61.03219;
     const DEFAULT_LNG = 7.30878;
     const FORECAST_DAYS = 7;
-
     let allData = {};
     let dates = [];
     let selectedDate = '';
@@ -155,9 +117,9 @@
     let animFrameId = null;
 
     const map = L.map('map', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OSM &amp; CARTO | Vind: Open-Meteo',
-        maxZoom: 18, subdomains: 'abcd'
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap | Vind: Open-Meteo',
+        maxZoom: 18
     }).addTo(map);
 
     const centerMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
@@ -168,16 +130,12 @@
     const ctx = canvas.getContext('2d');
     let particles = [];
 
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
     class WindParticle {
         constructor() { this.reset(true); }
-
         reset(randomAge = false) {
             this.x = Math.random() * canvas.width;
             this.y = Math.random() * canvas.height;
@@ -185,38 +143,26 @@
             this.maxAge = 60 + Math.random() * 80;
             this.history = [];
         }
-
         update(windDir, windSpeed) {
             if (this.age >= this.maxAge) { this.reset(); return; }
             this.age++;
-
             const toRad = (windDir + 180) % 360 * Math.PI / 180;
             const speedFactor = Math.max(0.5, windSpeed * 0.35);
             const turbulence = (Math.random() - 0.5) * 0.8;
-
             const vx = Math.sin(toRad) * speedFactor + turbulence;
             const vy = -Math.cos(toRad) * speedFactor + turbulence;
-
             this.history.push({ x: this.x, y: this.y });
             if (this.history.length > 14) this.history.shift();
-
             this.x += vx;
             this.y += vy;
-
-            // Reset when leaving screen (no wrapping = no stray lines)
-            if (this.x < -10 || this.x > canvas.width + 10 ||
-                this.y < -10 || this.y > canvas.height + 10) {
-                this.reset();
-            }
+            if (this.x < -10 || this.x > canvas.width + 10 || this.y < -10 || this.y > canvas.height + 10) { this.reset(); }
         }
-
         draw(ctx, windSpeed) {
             if (this.history.length < 2) return;
             const lifeRatio = 1 - this.age / this.maxAge;
             const baseAlpha = Math.min(1, lifeRatio * 0.9);
             const color = speedColor(windSpeed);
             const totalPts = this.history.length;
-
             for (let i = 1; i < totalPts; i++) {
                 const segAlpha = baseAlpha * (i / totalPts) * 0.6;
                 ctx.beginPath();
@@ -237,7 +183,6 @@
                 ctx.lineCap = 'round';
                 ctx.stroke();
             }
-
             ctx.beginPath();
             ctx.arc(this.x, this.y, 1.2 + windSpeed * 0.05, 0, Math.PI * 2);
             ctx.fillStyle = color.replace(')', `,${baseAlpha * 0.95})`).replace('rgb', 'rgba');
@@ -254,7 +199,6 @@
         if (speed < 18) return 'rgb(231, 76, 60)';
         return 'rgb(142, 68, 173)';
     }
-
     function windColorHex(speed) {
         if (speed < 5) return '#4a9ebe';
         if (speed < 8) return '#2ecc71';
@@ -263,46 +207,24 @@
         return '#8e44ad';
     }
 
-    function initParticles() {
-        particles = [];
-        for (let i = 0; i < particleCount; i++) {
-            particles.push(new WindParticle());
-        }
-    }
+    function initParticles() { particles = []; for (let i = 0; i < particleCount; i++) particles.push(new WindParticle()); }
 
     function animate() {
-        if (!animationEnabled) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            return;
-        }
-
+        if (!animationEnabled) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
         const dayData = allData[selectedDate];
         if (!dayData) { animFrameId = requestAnimationFrame(animate); return; }
         const data = dayData.find(d => d.hour === currentHour) || dayData[0];
-
-        // Clear canvas completely each frame so map shows through
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         while (particles.length < particleCount) particles.push(new WindParticle());
         while (particles.length > particleCount) particles.pop();
-
-        for (const p of particles) {
-            p.update(data.dir, data.speed);
-            p.draw(ctx, data.speed);
-        }
-
+        for (const p of particles) { p.update(data.dir, data.speed); p.draw(ctx, data.speed); }
         animFrameId = requestAnimationFrame(animate);
     }
 
-    map.on('movestart zoomstart', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        particles.forEach(p => p.history = []);
-    });
+    map.on('movestart zoomstart', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => p.history = []); });
 
     async function fetchFromOpenMeteo() {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${DEFAULT_LAT}&longitude=${DEFAULT_LNG}` +
-            `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
-            `&forecast_days=${FORECAST_DAYS}&timezone=Europe%2FOslo&wind_speed_unit=ms`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${DEFAULT_LAT}&longitude=${DEFAULT_LNG}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=${FORECAST_DAYS}&timezone=Europe%2FOslo&wind_speed_unit=ms`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -311,8 +233,7 @@
     }
 
     function parseApiData(json) {
-        const h = json.hourly;
-        const result = {};
+        const h = json.hourly; const result = {};
         for (let i = 0; i < h.time.length; i++) {
             const dt = h.time[i].substring(0, 10);
             const hour = parseInt(h.time[i].substring(11, 13));
@@ -328,28 +249,20 @@
         const errorText = document.getElementById('errorText');
         const retryBtn = document.getElementById('retryBtn');
         const loadingText = document.getElementById('loadingText');
-
-        loading.style.display = 'flex';
-        spinner.style.display = 'block';
-        errorText.style.display = 'none';
-        retryBtn.style.display = 'none';
+        loading.style.display = 'flex'; spinner.style.display = 'block';
+        errorText.style.display = 'none'; retryBtn.style.display = 'none';
         loadingText.textContent = 'Henter vinddata for 7 dager...';
-
         try {
             const json = await fetchFromOpenMeteo();
             allData = parseApiData(json);
             dates = Object.keys(allData).sort();
             selectedDate = dates.length > 1 ? dates[1] : dates[0];
-            buildDateButtons();
-            loading.style.display = 'none';
-            updateDisplay();
-            initParticles();
-            animate();
+            buildDateButtons(); loading.style.display = 'none';
+            updateDisplay(); initParticles(); animate();
         } catch (e) {
             spinner.style.display = 'none';
             loadingText.textContent = 'Kunne ikke hente vinddata';
-            errorText.style.display = 'block';
-            errorText.textContent = e.message;
+            errorText.style.display = 'block'; errorText.textContent = e.message;
             retryBtn.style.display = 'inline-block';
         }
     }
@@ -361,8 +274,7 @@
     }
 
     function buildDateButtons() {
-        const row = document.getElementById('dateRow');
-        row.innerHTML = '';
+        const row = document.getElementById('dateRow'); row.innerHTML = '';
         dates.forEach(date => {
             const btn = document.createElement('button');
             btn.className = 'date-btn' + (date === selectedDate ? ' active' : '');
@@ -370,8 +282,7 @@
             btn.onclick = () => {
                 selectedDate = date;
                 document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                updateDisplay();
+                btn.classList.add('active'); updateDisplay();
                 particles.forEach(p => { p.history = []; p.age = 0; });
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             };
@@ -398,50 +309,36 @@
         if (ms < 28.5) return { level: 10, name: 'Full storm' };
         if (ms < 32.7) return { level: 11, name: 'Sterk storm' };
         return { level: 12, name: 'Orkan' };
-        }
+    }
 
     function updateDisplay() {
-        const dayData = allData[selectedDate];
-        if (!dayData) return;
+        const dayData = allData[selectedDate]; if (!dayData) return;
         const data = dayData.find(d => d.hour === currentHour) || dayData[0];
-        const { dir, speed, gust } = data;
-        const bf = beaufortScale(speed);
-
+        const { dir, speed, gust } = data; const bf = beaufortScale(speed);
         document.getElementById('timeDisplay').textContent = String(currentHour).padStart(2,'0') + ':00';
         document.getElementById('wDir').textContent = `${Math.round(dir)}°`;
         document.getElementById('wSpeed').textContent = `${speed.toFixed(1)} m/s`;
         document.getElementById('wGust').textContent = `${gust.toFixed(1)} m/s`;
         document.getElementById('wFrom').textContent = directionName(dir);
-
         const pct = Math.min(100, (bf.level / 12) * 100);
         const fill = document.getElementById('beaufortFill');
-        fill.style.width = pct + '%';
-        fill.style.background = windColorHex(speed);
+        fill.style.width = pct + '%'; fill.style.background = windColorHex(speed);
         document.getElementById('beaufortLabel').textContent = `Beaufort ${bf.level} — ${bf.name}`;
     }
 
     document.getElementById('timeSlider').addEventListener('input', e => {
-        currentHour = parseInt(e.target.value);
-        updateDisplay();
-        particles.forEach(p => { p.history = []; });
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        currentHour = parseInt(e.target.value); updateDisplay();
+        particles.forEach(p => { p.history = []; }); ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
-
     document.getElementById('densitySlider').addEventListener('input', e => {
         particleCount = parseInt(e.target.value);
         document.getElementById('densityDisplay').textContent = particleCount;
     });
-
     document.getElementById('particleToggle').addEventListener('click', function() {
         animationEnabled = !animationEnabled;
         this.classList.toggle('on', animationEnabled);
-        if (animationEnabled) {
-            initParticles();
-            animate();
-        } else {
-            if (animFrameId) cancelAnimationFrame(animFrameId);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
+        if (animationEnabled) { initParticles(); animate(); }
+        else { if (animFrameId) cancelAnimationFrame(animFrameId); ctx.clearRect(0, 0, canvas.width, canvas.height); }
     });
 
     loadData();
