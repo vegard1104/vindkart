@@ -11,48 +11,152 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a1a; color: #e0e0e0; }
         #map { width: 100%; height: 100vh; }
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 450; pointer-events: none; }
-        .controls { position: absolute; top: 16px; right: 16px; z-index: 1000; background: rgba(10, 10, 26, 0.88); backdrop-filter: blur(16px); border-radius: 16px; padding: 20px 22px; width: 320px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(126,200,227,0.12); }
+
+        .controls {
+            position: absolute; top: 16px; right: 16px; z-index: 1000;
+            background: rgba(10, 10, 26, 0.88); backdrop-filter: blur(16px);
+            border-radius: 16px; padding: 20px 22px; width: 320px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(126,200,227,0.12);
+        }
         .controls h2 { font-size: 20px; font-weight: 700; color: #7ec8e3; margin-bottom: 2px; letter-spacing: -0.3px; }
         .controls .subtitle { font-size: 11px; color: #666; margin-bottom: 14px; }
+
         .date-scroll { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: #333 transparent; }
         .date-scroll::-webkit-scrollbar { height: 4px; }
         .date-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-        .date-btn { flex-shrink: 0; padding: 6px 10px; border: 1px solid rgba(126,200,227,0.15); background: transparent; color: #777; border-radius: 8px; cursor: pointer; font-size: 12px; transition: all 0.2s; white-space: nowrap; }
+        .date-btn {
+            flex-shrink: 0; padding: 6px 10px; border: 1px solid rgba(126,200,227,0.15);
+            background: transparent; color: #777; border-radius: 8px; cursor: pointer;
+            font-size: 12px; transition: all 0.2s; white-space: nowrap;
+        }
         .date-btn:hover { background: rgba(126,200,227,0.08); color: #ccc; }
         .date-btn.active { background: rgba(126,200,227,0.15); color: #7ec8e3; border-color: rgba(126,200,227,0.4); font-weight: 600; }
+
         .control-group { margin-bottom: 14px; }
         .control-group label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         .control-group .value { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 4px; }
         .control-group .unit { font-size: 12px; color: #7ec8e3; font-weight: 400; }
-        input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #1a1a3e, #2a2a5a); outline: none; cursor: pointer; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #7ec8e3; border: 2px solid #fff; cursor: pointer; box-shadow: 0 0 8px rgba(126,200,227,0.4); }
-        .wind-info { background: rgba(126,200,227,0.06); border-radius: 12px; padding: 12px 14px; border: 1px solid rgba(126,200,227,0.1); }
+
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px;
+            background: linear-gradient(90deg, #1a1a3e, #2a2a5a); outline: none; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+            background: #7ec8e3; border: 2px solid #fff; cursor: pointer;
+            box-shadow: 0 0 8px rgba(126,200,227,0.4);
+        }
+
+        .wind-info {
+            background: rgba(126,200,227,0.06); border-radius: 12px; padding: 12px 14px;
+            border: 1px solid rgba(126,200,227,0.1);
+        }
         .wind-info .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .wind-info .row:last-child { margin-bottom: 0; }
         .wind-info .label { color: #666; font-size: 12px; }
         .wind-info .val { color: #fff; font-size: 12px; font-weight: 600; }
+
         .beaufort-bar { margin-top: 10px; background: #151530; border-radius: 4px; height: 6px; overflow: hidden; }
         .beaufort-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease, background 0.4s ease; }
         .beaufort-label { font-size: 10px; color: #555; margin-top: 3px; }
-        .speed-gradient { margin-top: 10px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #4a9ebe, #2ecc71, #f1c40f, #e67e22, #e74c3c, #8e44ad); }
+
+        .speed-gradient {
+            margin-top: 10px; height: 6px; border-radius: 3px;
+            background: linear-gradient(90deg, #4a9ebe, #2ecc71, #f1c40f, #e67e22, #e74c3c, #8e44ad);
+        }
         .speed-labels { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
-        .particle-toggle { margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #888; }
-        .toggle-switch { width: 36px; height: 20px; background: #222; border-radius: 10px; position: relative; cursor: pointer; transition: background 0.3s; }
+
+        .particle-toggle {
+            margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #888;
+        }
+        .toggle-switch {
+            width: 36px; height: 20px; background: #222; border-radius: 10px; position: relative;
+            cursor: pointer; transition: background 0.3s;
+        }
         .toggle-switch.on { background: rgba(126,200,227,0.3); }
-        .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #555; border-radius: 50%; transition: all 0.3s; }
+        .toggle-switch::after {
+            content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+            background: #555; border-radius: 50%; transition: all 0.3s;
+        }
         .toggle-switch.on::after { left: 18px; background: #7ec8e3; }
+
         .api-badge { display: inline-block; font-size: 9px; color: #444; padding: 2px 6px; border-radius: 3px; margin-top: 8px; }
-        .loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: rgba(10,10,26,0.97); display: flex; align-items: center; justify-content: center; }
+
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 2000; background: rgba(10,10,26,0.97);
+            display: flex; align-items: center; justify-content: center;
+        }
         .loading-box { text-align: center; color: #7ec8e3; }
-        .loading-box .spinner { width: 40px; height: 40px; border: 3px solid #151530; border-top-color: #7ec8e3; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
+        .loading-box .spinner {
+            width: 40px; height: 40px; border: 3px solid #151530; border-top-color: #7ec8e3;
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading-box .error { color: #e74c3c; margin-top: 10px; font-size: 12px; }
-        .loading-box .retry-btn { margin-top: 12px; padding: 8px 20px; border: 1px solid #7ec8e3; background: transparent; color: #7ec8e3; border-radius: 8px; cursor: pointer; font-size: 13px; }
-        .legend { position: absolute; bottom: 20px; left: 16px; z-index: 1000; background: rgba(10,10,26,0.88); backdrop-filter: blur(8px); border-radius: 10px; padding: 10px 14px; font-size: 11px; border: 1px solid rgba(126,200,227,0.08); }
+        .loading-box .retry-btn {
+            margin-top: 12px; padding: 8px 20px; border: 1px solid #7ec8e3; background: transparent;
+            color: #7ec8e3; border-radius: 8px; cursor: pointer; font-size: 13px;
+        }
+
+        .legend {
+            position: absolute; bottom: 20px; left: 16px; z-index: 1000;
+            background: rgba(10,10,26,0.88); backdrop-filter: blur(8px);
+            border-radius: 10px; padding: 10px 14px; font-size: 11px;
+            border: 1px solid rgba(126,200,227,0.08);
+        }
         .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; color: #888; }
         .legend-item:last-child { margin-bottom: 0; }
         .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
-        @media (max-width: 600px) { .controls { width: calc(100% - 32px); right: 16px; top: 10px; padding: 14px 14px; } }
+
+        /* Mobile collapse toggle */
+        .controls-toggle {
+            display: none; position: absolute; top: 12px; right: 12px; z-index: 1001;
+            width: 44px; height: 44px; border-radius: 12px;
+            background: rgba(10, 10, 26, 0.88); backdrop-filter: blur(16px);
+            border: 1px solid rgba(126,200,227,0.15); cursor: pointer;
+            align-items: center; justify-content: center; color: #7ec8e3; font-size: 20px;
+        }
+        .controls-toggle svg { width: 22px; height: 22px; }
+
+        @media (max-width: 600px) {
+            .controls-toggle { display: flex; }
+            .controls {
+                width: calc(100% - 24px); right: 12px; left: 12px; top: 64px;
+                padding: 14px 14px; border-radius: 14px;
+                max-height: calc(100vh - 80px); overflow-y: auto;
+                transition: transform 0.3s ease, opacity 0.3s ease;
+            }
+            .controls.collapsed {
+                transform: translateY(-10px); opacity: 0; pointer-events: none; visibility: hidden;
+            }
+            .controls h2 { font-size: 17px; }
+            .controls .subtitle { font-size: 10px; margin-bottom: 10px; }
+            .date-scroll { gap: 5px; margin-bottom: 10px; }
+            .date-btn { padding: 8px 11px; font-size: 12px; min-height: 36px; }
+            .control-group { margin-bottom: 10px; }
+            .control-group .value { font-size: 22px; }
+            .control-group label { font-size: 10px; }
+            input[type="range"] { height: 6px; }
+            input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+            .wind-info { padding: 10px 12px; }
+            .wind-info .label, .wind-info .val { font-size: 12px; }
+            .legend {
+                bottom: 10px; left: 10px; padding: 7px 10px; font-size: 10px;
+                border-radius: 8px; max-width: 160px;
+            }
+            .legend-dot { width: 6px; height: 6px; }
+            .legend-item { gap: 5px; margin-bottom: 2px; }
+            .particle-toggle { margin-top: 8px; }
+            .speed-labels { font-size: 8px; }
+            .api-badge { font-size: 8px; }
+        }
+
+        @media (max-width: 380px) {
+            .controls { padding: 12px 10px; }
+            .control-group .value { font-size: 20px; }
+            .date-btn { padding: 7px 9px; font-size: 11px; }
+        }
     </style>
 </head>
 <body>
@@ -64,22 +168,38 @@
             <button class="retry-btn" id="retryBtn" style="display:none;" onclick="loadData()">Prøv igjen</button>
         </div>
     </div>
+
     <div id="map"></div>
     <canvas id="windCanvas"></canvas>
+
+    <button class="controls-toggle" id="controlsToggle" aria-label="Vis/skjul kontroller">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
+        </svg>
+    </button>
+
     <div class="controls">
         <h2>Vindkart</h2>
         <div class="subtitle" id="locationSubtitle">61.032°N, 7.309°E — Sogn</div>
+
         <div class="date-scroll" id="dateRow"></div>
+
         <div class="control-group">
             <label>Klokkeslett</label>
             <div class="value" id="timeDisplay">12:00</div>
             <input type="range" id="timeSlider" min="0" max="23" value="12" step="1">
         </div>
+
         <div class="control-group">
             <label>Partikkeltetthet</label>
             <div class="value"><span id="densityDisplay">500</span></div>
             <input type="range" id="densitySlider" min="100" max="2000" value="500" step="50">
         </div>
+
         <div class="wind-info">
             <div class="row"><span class="label">Vindretning</span><span class="val" id="wDir">—</span></div>
             <div class="row"><span class="label">Vindhastighet</span><span class="val" id="wSpeed">—</span></div>
@@ -88,26 +208,33 @@
             <div class="beaufort-bar"><div class="beaufort-fill" id="beaufortFill"></div></div>
             <div class="beaufort-label" id="beaufortLabel"></div>
         </div>
+
         <div class="speed-gradient"></div>
         <div class="speed-labels"><span>0</span><span>5</span><span>10</span><span>15</span><span>20+</span></div>
+
         <div class="particle-toggle">
             <div class="toggle-switch on" id="particleToggle"></div>
             <span>Vindanimasjon</span>
         </div>
+
         <div class="api-badge">Kilde: Open-Meteo (MET Norway)</div>
     </div>
+
     <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Senterpunkt</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#4a9ebe;"></div> Svak vind (<5 m/s)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4a9ebe;"></div> Svak vind (&lt;5 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> Lett bris (5–8 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#f1c40f;"></div> Frisk bris (8–14 m/s)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Kuling+ (>14 m/s)</div>
-                                                                                         </div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Kuling+ (&gt;14 m/s)</div>
+    </div>
 
     <script>
+    // === CONFIG ===
     const DEFAULT_LAT = 61.03219;
     const DEFAULT_LNG = 7.30878;
     const FORECAST_DAYS = 7;
+
+    // === STATE ===
     let allData = {};
     let dates = [];
     let selectedDate = '';
@@ -116,6 +243,7 @@
     let animationEnabled = true;
     let animFrameId = null;
 
+    // === MAP ===
     const map = L.map('map', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap | Vind: Open-Meteo',
@@ -124,18 +252,24 @@
 
     const centerMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
         radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 0.9, weight: 2
-    }).addTo(map).bindPopup('<b>Senterpunkt</b><br>61&deg;01\'55.9"N 7&deg;18\'31.6"E');
+    }).addTo(map).bindPopup('<b>Senterpunkt</b><br>61°01\'55.9"N 7°18\'31.6"E');
 
+    // === CANVAS ===
     const canvas = document.getElementById('windCanvas');
     const ctx = canvas.getContext('2d');
     let particles = [];
 
-    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
+    // === PARTICLE SYSTEM ===
     class WindParticle {
         constructor() { this.reset(true); }
+
         reset(randomAge = false) {
             this.x = Math.random() * canvas.width;
             this.y = Math.random() * canvas.height;
@@ -143,26 +277,43 @@
             this.maxAge = 60 + Math.random() * 80;
             this.history = [];
         }
+
         update(windDir, windSpeed) {
             if (this.age >= this.maxAge) { this.reset(); return; }
             this.age++;
+
+            // Wind direction: meteorological (where wind comes FROM)
+            // Convert to where wind blows TO
             const toRad = (windDir + 180) % 360 * Math.PI / 180;
+            // Speed scaling: pixels per frame
             const speedFactor = Math.max(0.5, windSpeed * 0.35);
+            // Add slight turbulence for realism
             const turbulence = (Math.random() - 0.5) * 0.8;
+
             const vx = Math.sin(toRad) * speedFactor + turbulence;
             const vy = -Math.cos(toRad) * speedFactor + turbulence;
+
             this.history.push({ x: this.x, y: this.y });
             if (this.history.length > 14) this.history.shift();
+
             this.x += vx;
             this.y += vy;
-            if (this.x < -10 || this.x > canvas.width + 10 || this.y < -10 || this.y > canvas.height + 10) { this.reset(); }
+
+            // Reset when leaving screen (no wrapping = no stray lines)
+            if (this.x < -10 || this.x > canvas.width + 10 ||
+                this.y < -10 || this.y > canvas.height + 10) {
+                this.reset();
+            }
         }
+
         draw(ctx, windSpeed) {
             if (this.history.length < 2) return;
             const lifeRatio = 1 - this.age / this.maxAge;
             const baseAlpha = Math.min(1, lifeRatio * 0.9);
             const color = speedColor(windSpeed);
             const totalPts = this.history.length;
+
+            // Draw trail segments with fading opacity (tail to head)
             for (let i = 1; i < totalPts; i++) {
                 const segAlpha = baseAlpha * (i / totalPts) * 0.6;
                 ctx.beginPath();
@@ -173,6 +324,7 @@
                 ctx.lineCap = 'round';
                 ctx.stroke();
             }
+            // Last segment to current position
             if (totalPts > 0) {
                 const last = this.history[totalPts - 1];
                 ctx.beginPath();
@@ -183,6 +335,8 @@
                 ctx.lineCap = 'round';
                 ctx.stroke();
             }
+
+            // Bright glowing head
             ctx.beginPath();
             ctx.arc(this.x, this.y, 1.2 + windSpeed * 0.05, 0, Math.PI * 2);
             ctx.fillStyle = color.replace(')', `,${baseAlpha * 0.95})`).replace('rgb', 'rgba');
@@ -199,6 +353,7 @@
         if (speed < 18) return 'rgb(231, 76, 60)';
         return 'rgb(142, 68, 173)';
     }
+
     function windColorHex(speed) {
         if (speed < 5) return '#4a9ebe';
         if (speed < 8) return '#2ecc71';
@@ -207,24 +362,49 @@
         return '#8e44ad';
     }
 
-    function initParticles() { particles = []; for (let i = 0; i < particleCount; i++) particles.push(new WindParticle()); }
+    function initParticles() {
+        particles = [];
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new WindParticle());
+        }
+    }
 
     function animate() {
-        if (!animationEnabled) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+        if (!animationEnabled) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
         const dayData = allData[selectedDate];
         if (!dayData) { animFrameId = requestAnimationFrame(animate); return; }
         const data = dayData.find(d => d.hour === currentHour) || dayData[0];
+
+        // Clear canvas completely each frame so map shows through
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Adjust particle count
         while (particles.length < particleCount) particles.push(new WindParticle());
         while (particles.length > particleCount) particles.pop();
-        for (const p of particles) { p.update(data.dir, data.speed); p.draw(ctx, data.speed); }
+
+        for (const p of particles) {
+            p.update(data.dir, data.speed);
+            p.draw(ctx, data.speed);
+        }
+
         animFrameId = requestAnimationFrame(animate);
     }
 
-    map.on('movestart zoomstart', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => p.history = []); });
+    // Clear canvas on map move to avoid misaligned trails
+    map.on('movestart zoomstart', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => p.history = []);
+    });
 
+    // === API ===
     async function fetchFromOpenMeteo() {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${DEFAULT_LAT}&longitude=${DEFAULT_LNG}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=${FORECAST_DAYS}&timezone=Europe%2FOslo&wind_speed_unit=ms`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${DEFAULT_LAT}&longitude=${DEFAULT_LNG}` +
+            `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
+            `&forecast_days=${FORECAST_DAYS}&timezone=Europe%2FOslo&wind_speed_unit=ms`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -233,7 +413,8 @@
     }
 
     function parseApiData(json) {
-        const h = json.hourly; const result = {};
+        const h = json.hourly;
+        const result = {};
         for (let i = 0; i < h.time.length; i++) {
             const dt = h.time[i].substring(0, 10);
             const hour = parseInt(h.time[i].substring(11, 13));
@@ -249,32 +430,43 @@
         const errorText = document.getElementById('errorText');
         const retryBtn = document.getElementById('retryBtn');
         const loadingText = document.getElementById('loadingText');
-        loading.style.display = 'flex'; spinner.style.display = 'block';
-        errorText.style.display = 'none'; retryBtn.style.display = 'none';
+
+        loading.style.display = 'flex';
+        spinner.style.display = 'block';
+        errorText.style.display = 'none';
+        retryBtn.style.display = 'none';
         loadingText.textContent = 'Henter vinddata for 7 dager...';
+
         try {
             const json = await fetchFromOpenMeteo();
             allData = parseApiData(json);
             dates = Object.keys(allData).sort();
             selectedDate = dates.length > 1 ? dates[1] : dates[0];
-            buildDateButtons(); loading.style.display = 'none';
-            updateDisplay(); initParticles(); animate();
+            buildDateButtons();
+            loading.style.display = 'none';
+            updateDisplay();
+            initParticles();
+            animate();
+            autoCollapseOnMobile();
         } catch (e) {
             spinner.style.display = 'none';
             loadingText.textContent = 'Kunne ikke hente vinddata';
-            errorText.style.display = 'block'; errorText.textContent = e.message;
+            errorText.style.display = 'block';
+            errorText.textContent = e.message;
             retryBtn.style.display = 'inline-block';
         }
     }
 
+    // === DATE BUTTONS ===
     function formatDateShort(dateStr) {
-        const days = ['søn','man','tir','ons','tor','fre','lør'];
+        const days = ['s\u00f8n','man','tir','ons','tor','fre','l\u00f8r'];
         const d = new Date(dateStr + 'T12:00:00');
         return `${days[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
     }
 
     function buildDateButtons() {
-        const row = document.getElementById('dateRow'); row.innerHTML = '';
+        const row = document.getElementById('dateRow');
+        row.innerHTML = '';
         dates.forEach(date => {
             const btn = document.createElement('button');
             btn.className = 'date-btn' + (date === selectedDate ? ' active' : '');
@@ -282,16 +474,19 @@
             btn.onclick = () => {
                 selectedDate = date;
                 document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active'); updateDisplay();
+                btn.classList.add('active');
+                updateDisplay();
+                // Reset particles for clean transition
                 particles.forEach(p => { p.history = []; p.age = 0; });
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             };
             row.appendChild(btn);
         });
-    }
+        }
 
+    // === HELPERS ===
     function directionName(deg) {
-        const dirs = ['N','NNØ','NØ','ØNØ','Ø','ØSØ','SØ','SSØ','S','SSV','SV','VSV','V','VNV','NV','NNV'];
+        const dirs = ['N','NN\u00d8','N\u00d8','\u00d8N\u00d8','\u00d8','\u00d8S\u00d8','S\u00d8','SS\u00d8','S','SSV','SV','VSV','V','VNV','NV','NNV'];
         return dirs[Math.round(deg / 22.5) % 16];
     }
 
@@ -311,36 +506,79 @@
         return { level: 12, name: 'Orkan' };
     }
 
+    // === DISPLAY ===
     function updateDisplay() {
-        const dayData = allData[selectedDate]; if (!dayData) return;
+        const dayData = allData[selectedDate];
+        if (!dayData) return;
         const data = dayData.find(d => d.hour === currentHour) || dayData[0];
-        const { dir, speed, gust } = data; const bf = beaufortScale(speed);
+        const { dir, speed, gust } = data;
+        const bf = beaufortScale(speed);
+
         document.getElementById('timeDisplay').textContent = String(currentHour).padStart(2,'0') + ':00';
-        document.getElementById('wDir').textContent = `${Math.round(dir)}°`;
+        document.getElementById('wDir').textContent = `${Math.round(dir)}\u00b0`;
         document.getElementById('wSpeed').textContent = `${speed.toFixed(1)} m/s`;
         document.getElementById('wGust').textContent = `${gust.toFixed(1)} m/s`;
         document.getElementById('wFrom').textContent = directionName(dir);
+
         const pct = Math.min(100, (bf.level / 12) * 100);
         const fill = document.getElementById('beaufortFill');
-        fill.style.width = pct + '%'; fill.style.background = windColorHex(speed);
-        document.getElementById('beaufortLabel').textContent = `Beaufort ${bf.level} — ${bf.name}`;
+        fill.style.width = pct + '%';
+        fill.style.background = windColorHex(speed);
+        document.getElementById('beaufortLabel').textContent = `Beaufort ${bf.level} \u2014 ${bf.name}`;
     }
 
+    // === EVENTS ===
     document.getElementById('timeSlider').addEventListener('input', e => {
-        currentHour = parseInt(e.target.value); updateDisplay();
-        particles.forEach(p => { p.history = []; }); ctx.clearRect(0, 0, canvas.width, canvas.height);
+        currentHour = parseInt(e.target.value);
+        updateDisplay();
+        particles.forEach(p => { p.history = []; });
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
+
     document.getElementById('densitySlider').addEventListener('input', e => {
         particleCount = parseInt(e.target.value);
         document.getElementById('densityDisplay').textContent = particleCount;
     });
+
     document.getElementById('particleToggle').addEventListener('click', function() {
         animationEnabled = !animationEnabled;
         this.classList.toggle('on', animationEnabled);
-        if (animationEnabled) { initParticles(); animate(); }
-        else { if (animFrameId) cancelAnimationFrame(animFrameId); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        if (animationEnabled) {
+            initParticles();
+            animate();
+        } else {
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
     });
 
+    // === MOBILE TOGGLE ===
+    const controlsPanel = document.querySelector('.controls');
+    const controlsToggle = document.getElementById('controlsToggle');
+    let controlsVisible = true;
+
+    controlsToggle.addEventListener('click', () => {
+        controlsVisible = !controlsVisible;
+        controlsPanel.classList.toggle('collapsed', !controlsVisible);
+    });
+
+    // Auto-collapse controls on mobile after data loads
+    function autoCollapseOnMobile() {
+        if (window.innerWidth <= 600) {
+            controlsVisible = false;
+            controlsPanel.classList.add('collapsed');
+        }
+    }
+
+    // === MOBILE PERFORMANCE ===
+    const isMobile = window.innerWidth <= 600;
+    if (isMobile) {
+        particleCount = 300;
+        document.getElementById('densitySlider').value = 300;
+        document.getElementById('densityDisplay').textContent = '300';
+    }
+
+    // === START ===
     loadData();
     </script>
 </body>
