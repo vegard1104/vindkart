@@ -642,7 +642,8 @@
 const DEFAULT_LAT = 61.03219;
 const DEFAULT_LNG = 7.30878;
 const FORECAST_DAYS = 3;
-const GRID_SIZE = 4;
+const GRID_SIZE = 3;
+const YR_API_BASE = 'https://api.met.no/weatherapi/locationforecast/2.0/compact';
 
 // =====================================================================
 // STATE
@@ -685,7 +686,7 @@ let avalancheVisible = false;
 // =====================================================================
 const map = L.map('map', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 10);
 L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
-    attribution: '&copy; <a href="https://kartverket.no">Kartverket</a> | V&aelig;r: Open-Meteo | NVE/Varsom',
+    attribution: '&copy; <a href="https://kartverket.no">Kartverket</a> | V&aelig;r: <a href="https://www.yr.no">Yr</a>/MET&nbsp;Norway | NVE/Varsom',
     maxZoom: 18
 }).addTo(map);
 
@@ -860,6 +861,38 @@ function wmoToDesc(c) {
     return 'Ukjent';
 }
 
+// Map Yr symbol_code to WMO weather code for compatibility
+function yrSymbolToWmo(sym) {
+    if (!sym) return 0;
+    var s = sym.replace(/_day|_night|_polartwilight/g, '');
+    var map = {
+        'clearsky':0, 'fair':1, 'partlycloudy':2, 'cloudy':3, 'fog':45,
+        'lightrain':61, 'rain':63, 'heavyrain':65,
+        'lightrainshowers':80, 'rainshowers':80, 'heavyrainshowers':82,
+        'lightsleet':66, 'sleet':66, 'heavysleet':67,
+        'lightsleetshowers':66, 'sleetshowers':66, 'heavysleetshowers':67,
+        'lightsnow':71, 'snow':73, 'heavysnow':75,
+        'lightsnowshowers':85, 'snowshowers':85, 'heavysnowshowers':86,
+        'rainandthunder':95, 'sleetandthunder':95, 'snowandthunder':95,
+        'lightrainandthunder':95, 'heavyrainandthunder':96,
+        'lightrainshowersandthunder':95, 'rainshowersandthunder':95, 'heavyrainshowersandthunder':96,
+        'lightsleetandthunder':95, 'heavysleetandthunder':96,
+        'lightsnowandthunder':95, 'heavysnowandthunder':96,
+        'lightsleetshowersandthunder':95, 'sleetshowersandthunder':95, 'heavysleetshowersandthunder':96,
+        'lightsnowshowersandthunder':95, 'snowshowersandthunder':95, 'heavysnowshowersandthunder':96
+    };
+    return map[s] !== undefined ? map[s] : 3;
+}
+
+// Wind chill calculation (Canadian formula)
+function calcWindChill(tempC, windMs) {
+    var wkmh = windMs * 3.6;
+    if (tempC <= 10 && wkmh > 4.8) {
+        return 13.12 + 0.6215*tempC - 11.37*Math.pow(wkmh,0.16) + 0.3965*tempC*Math.pow(wkmh,0.16);
+    }
+    return tempC;
+}
+
 // =====================================================================
 // COLOR HELPERS
 // =====================================================================
@@ -942,7 +975,7 @@ function drawOverlay() {
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     if (appMode !== 'weather' || activeTab === 'wind') return;
     if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) return;
-    const gs = 4, px = overlayCanvas.width*0.08, py = overlayCanvas.height*0.08;
+    const gs = GRID_SIZE, px = overlayCanvas.width*0.08, py = overlayCanvas.height*0.08;
     const sx = (overlayCanvas.width-2*px)/(gs-1), sy = (overlayCanvas.height-2*py)/(gs-1);
     for (let gy=0; gy<gs; gy++) for (let gx=0; gx<gs; gx++) {
         const x=px+gx*sx, y=py+gy*sy;
@@ -1022,90 +1055,121 @@ async function fetchWeatherGrid() {
     if (isLoadingGrid) return;
     isLoadingGrid = true;
     const statusEl = document.getElementById('gridStatus');
-    statusEl.textContent = 'Henter v\u00e6rrutenett...'; statusEl.classList.add('loading');
+    statusEl.textContent = 'Henter v\u00e6rdata fra Yr...'; statusEl.classList.add('loading');
 
     const b = getMapGridBounds(); gridBounds = b;
     const lats=[], lngs=[];
     for (let i=0;i<GRID_SIZE;i++) { lats.push(b.south+(b.north-b.south)*i/(GRID_SIZE-1)); lngs.push(b.west+(b.east-b.west)*i/(GRID_SIZE-1)); }
     gridLats=lats; gridLngs=lngs;
 
-    const flatLats=[], flatLngs=[];
-    for (let i=0;i<GRID_SIZE;i++) for (let j=0;j<GRID_SIZE;j++) { flatLats.push(lats[i].toFixed(4)); flatLngs.push(lngs[j].toFixed(4)); }
-
-    const url = 'https://api.open-meteo.com/v1/forecast?' +
-        'latitude=' + flatLats.join(',') + '&longitude=' + flatLngs.join(',') +
-        '&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,apparent_temperature,precipitation,precipitation_probability,snowfall,weather_code,relative_humidity_2m,cloud_cover,visibility,dew_point_2m,surface_pressure,uv_index,snow_depth' +
-        '&forecast_days=' + FORECAST_DAYS + '&timezone=Europe%2FOslo&wind_speed_unit=ms';
-
-    // Retry with exponential backoff for rate limiting (429)
-    let retries = 0;
-    const maxRetries = 3;
-    let res;
     try {
-        while (retries <= maxRetries) {
-            res = await fetch(url);
-            if (res.status === 429) {
-                retries++;
-                if (retries > maxRetries) throw new Error('API rate limit (429). Pr\u00f8v igjen om litt.');
-                const delay = Math.pow(2, retries) * 2000; // 4s, 8s, 16s
-                statusEl.textContent = 'Rate limit \u2014 venter ' + (delay/1000) + 's (fors\u00f8k ' + retries + '/' + maxRetries + ')...';
-                await new Promise(r => setTimeout(r, delay));
-                continue;
+        // Fetch from Yr (MET Norway) API — one request per grid point
+        const fetches = [];
+        for (let i=0;i<GRID_SIZE;i++) {
+            for (let j=0;j<GRID_SIZE;j++) {
+                const url = YR_API_BASE + '?lat=' + lats[i].toFixed(4) + '&lon=' + lngs[j].toFixed(4);
+                fetches.push(
+                    fetch(url).then(function(res) {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.json();
+                    }).then(function(json) { return { i:i, j:j, data:json }; })
+                    .catch(function(err) { console.warn('Yr fetch ['+i+']['+j+']:', err.message); return null; })
+                );
             }
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            break;
         }
-        const json = await res.json();
-        const results = Array.isArray(json) ? json : [json];
-        const newGrid = {};
-        const times = results[0].hourly.time;
+
+        statusEl.textContent = 'Henter ' + fetches.length + ' v\u00e6rpunkter fra Yr...';
+        const results = await Promise.all(fetches);
+        const valid = results.filter(function(r) { return r !== null; });
+
+        if (valid.length === 0) throw new Error('Ingen data mottatt fra Yr. Pr\u00f8v igjen.');
+
+        // Collect dates from first valid result (convert UTC to Oslo time)
         const newDates = [];
-        for (let t=0; t<times.length; t++) { const dt=times[t].substring(0,10); if(!newDates.includes(dt)) newDates.push(dt); }
+        var firstTS = valid[0].data.properties.timeseries;
+        for (var ti=0; ti<firstTS.length; ti++) {
+            var utc = new Date(firstTS[ti].time);
+            var oslo = new Date(utc.toLocaleString('en-US', { timeZone: 'Europe/Oslo' }));
+            var dt = oslo.getFullYear()+'-'+String(oslo.getMonth()+1).padStart(2,'0')+'-'+String(oslo.getDate()).padStart(2,'0');
+            if (!newDates.includes(dt) && newDates.length < FORECAST_DAYS) newDates.push(dt);
+        }
 
-        for (const dt of newDates) { newGrid[dt]={}; for (let h=0;h<24;h++) {
-            newGrid[dt][h] = {
-                dirs: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                speeds: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                gusts: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                temps: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                feelslike: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                precip: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                precipProb: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                snowfall: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                weatherCode: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                humidity: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                cloudCover: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                visibility: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                dewpoint: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                pressure: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                uvIndex: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
-                snowDepth: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0))
-            };
-        }}
+        // Initialize empty grid
+        const newGrid = {};
+        for (var di=0; di<newDates.length; di++) {
+            var d = newDates[di]; newGrid[d] = {};
+            for (var h=0;h<24;h++) {
+                newGrid[d][h] = {
+                    dirs: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    speeds: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    gusts: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    temps: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    feelslike: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    precip: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    precipProb: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    snowfall: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    weatherCode: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    humidity: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    cloudCover: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    visibility: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(10000)}),
+                    dewpoint: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    pressure: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(1013)}),
+                    uvIndex: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)}),
+                    snowDepth: Array.from({length:GRID_SIZE},function(){return new Array(GRID_SIZE).fill(0)})
+                };
+            }
+        }
 
-        for (let idx=0; idx<results.length; idx++) {
-            const i=Math.floor(idx/GRID_SIZE), j=idx%GRID_SIZE, h=results[idx].hourly;
-            for (let t=0;t<h.time.length;t++) {
-                const dt=h.time[t].substring(0,10), hour=parseInt(h.time[t].substring(11,13));
-                if (newGrid[dt]&&newGrid[dt][hour]) {
-                    const c=newGrid[dt][hour];
-                    c.dirs[i][j]=h.wind_direction_10m[t]||0; c.speeds[i][j]=h.wind_speed_10m[t]||0; c.gusts[i][j]=h.wind_gusts_10m[t]||0;
-                    c.temps[i][j]=h.temperature_2m[t]!==undefined?h.temperature_2m[t]:0;
-                    c.feelslike[i][j]=h.apparent_temperature[t]!==undefined?h.apparent_temperature[t]:0;
-                    c.precip[i][j]=h.precipitation[t]||0; c.precipProb[i][j]=h.precipitation_probability[t]||0;
-                    c.snowfall[i][j]=h.snowfall[t]||0; c.weatherCode[i][j]=h.weather_code[t]||0;
-                    c.humidity[i][j]=h.relative_humidity_2m[t]||0; c.cloudCover[i][j]=h.cloud_cover[t]||0;
-                    c.visibility[i][j]=h.visibility[t]||0; c.dewpoint[i][j]=h.dew_point_2m[t]||0;
-                    c.pressure[i][j]=h.surface_pressure[t]||0; c.uvIndex[i][j]=h.uv_index[t]||0;
-                    c.snowDepth[i][j]=h.snow_depth[t]||0;
+        // Fill grid from Yr timeseries
+        for (var ri=0; ri<valid.length; ri++) {
+            var gi = valid[ri].i, gj = valid[ri].j;
+            var ts = valid[ri].data.properties.timeseries;
+            for (var tsi=0; tsi<ts.length; tsi++) {
+                var utcT = new Date(ts[tsi].time);
+                var osloT = new Date(utcT.toLocaleString('en-US', { timeZone: 'Europe/Oslo' }));
+                var dateStr = osloT.getFullYear()+'-'+String(osloT.getMonth()+1).padStart(2,'0')+'-'+String(osloT.getDate()).padStart(2,'0');
+                var hour = osloT.getHours();
+
+                if (!newGrid[dateStr] || !newGrid[dateStr][hour]) continue;
+                var c = newGrid[dateStr][hour];
+                var inst = ts[tsi].data.instant.details;
+
+                // Instant data from Yr
+                c.dirs[gi][gj] = inst.wind_from_direction || 0;
+                c.speeds[gi][gj] = inst.wind_speed || 0;
+                c.gusts[gi][gj] = (inst.wind_speed || 0) * 1.4; // Estimate gusts (not in compact)
+                c.temps[gi][gj] = inst.air_temperature !== undefined ? inst.air_temperature : 0;
+                c.feelslike[gi][gj] = calcWindChill(inst.air_temperature||0, inst.wind_speed||0);
+                c.humidity[gi][gj] = inst.relative_humidity || 0;
+                c.cloudCover[gi][gj] = inst.cloud_area_fraction || 0;
+                c.dewpoint[gi][gj] = inst.dew_point_temperature || 0;
+                c.pressure[gi][gj] = inst.air_pressure_at_sea_level || 1013;
+                c.visibility[gi][gj] = 10000; // Not in compact
+
+                // Period data (precipitation + symbol)
+                var period = ts[tsi].data.next_1_hours || ts[tsi].data.next_6_hours;
+                if (period) {
+                    var precip = (period.details && period.details.precipitation_amount) || 0;
+                    c.precip[gi][gj] = precip;
+                    c.precipProb[gi][gj] = precip > 0.5 ? 90 : (precip > 0 ? 50 : 0);
+                    c.snowfall[gi][gj] = (inst.air_temperature||0) < 1.5 ? precip : 0;
+                    if (period.summary && period.summary.symbol_code) {
+                        c.weatherCode[gi][gj] = yrSymbolToWmo(period.summary.symbol_code);
+                    }
                 }
             }
         }
+
         weatherGrid = newGrid;
         if (dates.length===0) { dates=newDates.sort(); selectedDate=dates.length>1?dates[1]:dates[0]; buildDateButtons(); }
         updateDisplay(); drawOverlay();
-        statusEl.textContent = 'V\u00e6rrutenett: ' + (GRID_SIZE*GRID_SIZE) + ' punkter'; statusEl.classList.remove('loading');
-    } catch (e) { statusEl.textContent = 'Feil: ' + e.message; statusEl.classList.remove('loading'); }
+        statusEl.textContent = 'Yr: ' + valid.length + '/' + (GRID_SIZE*GRID_SIZE) + ' punkter';
+        statusEl.classList.remove('loading');
+    } catch (e) {
+        statusEl.textContent = 'Feil: ' + e.message;
+        statusEl.classList.remove('loading');
+        console.error('Yr fetch error:', e);
+    }
     isLoadingGrid = false;
 }
 
@@ -1409,7 +1473,7 @@ async function loadData() {
     const loading=document.getElementById('loading'), spinner=document.getElementById('spinner');
     const errorText=document.getElementById('errorText'), retryBtn=document.getElementById('retryBtn'), loadingText=document.getElementById('loadingText');
     loading.style.display='flex'; spinner.style.display='block'; errorText.style.display='none'; retryBtn.style.display='none';
-    loadingText.textContent='Henter v\u00e6rdata (' + (GRID_SIZE*GRID_SIZE) + ' punkter)...';
+    loadingText.textContent='Henter v\u00e6rdata fra Yr (' + (GRID_SIZE*GRID_SIZE) + ' punkter)...';
     try {
         await fetchWeatherGrid();
         loading.style.display='none'; updateLocationSubtitle(); updateDisplay(); drawOverlay(); initParticles(); animate(); autoCollapseOnMobile();
@@ -2071,50 +2135,4 @@ setTimeout(fetchTourData, 1500);
 document.getElementById('btnDrawRoute').addEventListener('click', function() { tourDrawing=!tourDrawing; this.classList.toggle('active',tourDrawing); });
 document.getElementById('btnUndoPoint').addEventListener('click', undoTourPoint);
 document.getElementById('btnClearRoute').addEventListener('click', clearTourRoute);
-document.getElementById('toggleSteepness').addEventListener('click', toggleSteepnessLayer);
-document.getElementById('toggleAvalanche').addEventListener('click', toggleAvalancheLayer);
-
-// Kartverket Friluftsruter WMS toggle
-function toggleFriluftsruterLayer() {
-    friluftsruterVisible = !friluftsruterVisible;
-    document.getElementById('toggleFriluftsruter').classList.toggle('on', friluftsruterVisible);
-    if (friluftsruterVisible && !friluftsruterLayer) {
-        friluftsruterLayer = L.tileLayer.wms('https://wms.geonorge.no/skwms1/wms.friluftsruter2', {
-            layers: 'Fotrute,Skiloype,Sykkelrute,Annen_rute',
-            format: 'image/png', transparent: true, opacity: 0.7,
-            attribution: 'Friluftsruter: Kartverket', maxZoom: 18, zIndex: 410
-        }).addTo(map);
-    } else if (friluftsruterVisible && friluftsruterLayer) {
-        friluftsruterLayer.addTo(map);
-    } else if (!friluftsruterVisible && friluftsruterLayer) {
-        map.removeLayer(friluftsruterLayer);
-    }
-}
-document.getElementById('toggleFriluftsruter').addEventListener('click', toggleFriluftsruterLayer);
-
-// Mobile
-var controlsVisible = true;
-function getActivePanel() { return appMode === 'weather' ? document.getElementById('weatherPanel') : document.getElementById('tourPanel'); }
-document.getElementById('controlsToggle').addEventListener('click', function() {
-    controlsVisible = !controlsVisible;
-    const panel = getActivePanel();
-    if (panel) panel.classList.toggle('collapsed', !controlsVisible);
-});
-function autoCollapseOnMobile() {
-    if (window.innerWidth<=600) {
-        controlsVisible=false;
-        const panel = getActivePanel();
-        if (panel) panel.classList.add('collapsed');
-    }
-}
-
-// Mobile performance
-if (window.innerWidth <= 600) { particleCount=300; document.getElementById('densitySlider').value=300; document.getElementById('densityDisplay').textContent='300'; }
-
-// =====================================================================
-// START
-// =====================================================================
-loadData();
-</script>
-</body>
-</html>
+document.getElementById('toggl
