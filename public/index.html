@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vindkart &#8212; Norsk Vindkart</title>
+    <title>Vindkart &#8212; Sogn</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <style>
@@ -264,9 +264,10 @@
 
     // === MAP ===
     const map = L.map('map', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap | Vind: Open-Meteo',
-        maxZoom: 18
+    L.tileLayer('https://cache{s}.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
+        attribution: '&copy; <a href="https://kartverket.no">Kartverket</a> | Vind: Open-Meteo',
+        maxZoom: 18,
+        subdomains: ['', '2', '3']
     }).addTo(map);
 
     const centerMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
