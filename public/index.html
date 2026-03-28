@@ -203,6 +203,77 @@
 
         .api-badge { display: inline-block; font-size: 9px; color: #444; padding: 2px 6px; border-radius: 3px; margin-top: 8px; }
 
+        /* Topptur listings */
+        .tour-section-tabs {
+            display: flex; border-bottom: 1px solid rgba(126,200,227,0.12);
+            background: rgba(126,200,227,0.03); margin-bottom: 12px;
+        }
+        .tour-section-tab {
+            flex: 1; padding: 9px 4px; text-align: center; cursor: pointer;
+            font-size: 11px; font-weight: 600; color: #555; letter-spacing: 0.3px;
+            border-bottom: 2px solid transparent; transition: all 0.2s;
+            text-transform: uppercase; background: none; border-top: none; border-left: none; border-right: none;
+        }
+        .tour-section-tab:hover { color: #999; background: rgba(126,200,227,0.04); }
+        .tour-section-tab.active { color: #7ec8e3; border-bottom-color: #7ec8e3; }
+        .tour-section-tab .tab-icon { font-size: 14px; display: block; margin-bottom: 1px; }
+
+        .tour-section-content { display: none; }
+        .tour-section-content.active { display: block; }
+
+        .topptur-list { max-height: calc(100vh - 280px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #333 transparent; }
+        .topptur-list::-webkit-scrollbar { width: 4px; }
+        .topptur-list::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+        .topptur-card {
+            background: rgba(126,200,227,0.04); border: 1px solid rgba(126,200,227,0.1);
+            border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+            transition: all 0.2s; position: relative;
+        }
+        .topptur-card:hover { background: rgba(126,200,227,0.1); border-color: rgba(126,200,227,0.25); transform: translateY(-1px); }
+        .topptur-card .tt-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+        .topptur-card .tt-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+        .topptur-card .tt-title { font-size: 14px; font-weight: 700; color: #e0e0e0; line-height: 1.3; }
+        .topptur-card .tt-subtitle { font-size: 11px; color: #666; margin-top: 2px; }
+        .topptur-card .tt-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+        .topptur-card .tt-stat { font-size: 11px; color: #888; display: flex; align-items: center; gap: 3px; }
+        .topptur-card .tt-stat-val { color: #ccc; font-weight: 600; }
+        .topptur-card .tt-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+        .tt-badge {
+            font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .tt-badge-easy { background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
+        .tt-badge-moderate { background: rgba(241,196,15,0.15); color: #f1c40f; border: 1px solid rgba(241,196,15,0.3); }
+        .tt-badge-hard { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+        .tt-badge-season { background: rgba(126,200,227,0.1); color: #7ec8e3; border: 1px solid rgba(126,200,227,0.2); }
+
+        /* Tour detail view */
+        .topptur-detail { display: none; }
+        .topptur-detail.active { display: block; }
+        .tt-detail-back {
+            display: flex; align-items: center; gap: 6px; font-size: 12px; color: #7ec8e3;
+            cursor: pointer; margin-bottom: 12px; padding: 4px 0; border: none; background: none; font-family: inherit;
+        }
+        .tt-detail-back:hover { color: #a0daf0; }
+        .tt-detail-name { font-size: 18px; font-weight: 700; color: #e0e0e0; margin-bottom: 4px; }
+        .tt-detail-area { font-size: 12px; color: #666; margin-bottom: 12px; }
+        .tt-detail-stats {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+        }
+        .tt-detail-stat {
+            background: rgba(126,200,227,0.06); border-radius: 8px; padding: 8px 10px;
+            border: 1px solid rgba(126,200,227,0.08);
+        }
+        .tt-detail-stat .ds-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+        .tt-detail-stat .ds-val { font-size: 16px; font-weight: 700; color: #fff; margin-top: 2px; }
+        .tt-detail-desc {
+            font-size: 12px; color: #999; line-height: 1.6; margin-bottom: 12px;
+            background: rgba(126,200,227,0.03); border-radius: 8px; padding: 10px 12px;
+            border: 1px solid rgba(126,200,227,0.06);
+        }
+        .tt-detail-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
         .loading-overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             z-index: 2000; background: rgba(10,10,26,0.97);
@@ -280,6 +351,11 @@
             .speed-labels, .temp-labels, .precip-labels { font-size: 8px; }
             .api-badge { font-size: 8px; }
             .grid-status { bottom: 10px; right: 10px; font-size: 9px; }
+            .topptur-card .tt-title { font-size: 13px; }
+            .topptur-card .tt-stat { font-size: 10px; }
+            .topptur-list { max-height: calc(100vh - 300px); }
+            .tt-detail-name { font-size: 16px; }
+            .tt-detail-stat .ds-val { font-size: 14px; }
         }
         @media (max-width: 380px) {
             .controls-header { padding: 14px 14px 0 14px; }
@@ -419,25 +495,41 @@
     <div class="controls" id="tourPanel" style="display:none;">
         <div class="controls-header">
             <h2>Turkart</h2>
-            <div class="subtitle" id="tourSubtitle">Planlegg en rute</div>
+            <div class="subtitle" id="tourSubtitle">Toppturer &amp; ruteplanlegger</div>
+        </div>
+        <div class="tour-section-tabs">
+            <button class="tour-section-tab active" data-tourtab="toppturer"><span class="tab-icon">&#9968;</span>Toppturer</button>
+            <button class="tour-section-tab" data-tourtab="planlegg"><span class="tab-icon">&#9998;</span>Planlegg</button>
         </div>
         <div class="controls-body">
-            <div style="margin-bottom: 12px;">
-                <button class="tour-btn active" id="btnDrawRoute">&#9998; Tegn rute</button>
-                <button class="tour-btn" id="btnUndoPoint">&#8617; Angre</button>
-                <button class="tour-btn danger" id="btnClearRoute">&#10006; Slett rute</button>
+            <!-- TOPPTURER TAB -->
+            <div class="tour-section-content active" id="tourtab-toppturer">
+                <div class="topptur-list" id="toppturList"></div>
+                <div class="topptur-detail" id="toppturDetail"></div>
             </div>
 
-            <div class="tour-stats" id="tourStats">
-                <div class="stat"><span class="stat-label">Distanse</span><span class="stat-val" id="tourDist">0 km</span></div>
-                <div class="stat"><span class="stat-label">Antall punkter</span><span class="stat-val" id="tourPoints">0</span></div>
-                <div class="stat"><span class="stat-label">H&oslash;yde min / maks</span><span class="stat-val" id="tourElev">&mdash;</span></div>
-                <div class="stat"><span class="stat-label">Total stigning</span><span class="stat-val" id="tourAscent">&mdash;</span></div>
-                <div class="stat"><span class="stat-label">Total nedstigning</span><span class="stat-val" id="tourDescent">&mdash;</span></div>
+            <!-- PLANLEGG TAB -->
+            <div class="tour-section-content" id="tourtab-planlegg">
+                <div style="margin-bottom: 12px;">
+                    <button class="tour-btn active" id="btnDrawRoute">&#9998; Tegn rute</button>
+                    <button class="tour-btn" id="btnUndoPoint">&#8617; Angre</button>
+                    <button class="tour-btn danger" id="btnClearRoute">&#10006; Slett rute</button>
+                </div>
+
+                <div class="tour-stats" id="tourStats">
+                    <div class="stat"><span class="stat-label">Distanse</span><span class="stat-val" id="tourDist">0 km</span></div>
+                    <div class="stat"><span class="stat-label">Antall punkter</span><span class="stat-val" id="tourPoints">0</span></div>
+                    <div class="stat"><span class="stat-label">H&oslash;yde min / maks</span><span class="stat-val" id="tourElev">&mdash;</span></div>
+                    <div class="stat"><span class="stat-label">Total stigning</span><span class="stat-val" id="tourAscent">&mdash;</span></div>
+                    <div class="stat"><span class="stat-label">Total nedstigning</span><span class="stat-val" id="tourDescent">&mdash;</span></div>
+                </div>
+
+                <canvas id="elevationProfile"></canvas>
+
+                <div class="hint">Klikk p&aring; kartet for &aring; legge til punkter p&aring; ruten</div>
             </div>
 
-            <canvas id="elevationProfile"></canvas>
-
+            <!-- NVE layers (shared) -->
             <div style="margin-top: 14px;">
                 <div class="layer-toggle">
                     <div class="toggle-switch" id="toggleSteepness"></div>
@@ -466,7 +558,6 @@
                 </div>
             </div>
 
-            <div class="hint">Klikk p&aring; kartet for &aring; legge til punkter p&aring; ruten</div>
             <div class="api-badge">Kilde: Kartverket &middot; NVE/Varsom &middot; Open-Meteo</div>
         </div>
     </div>
@@ -1147,7 +1238,7 @@ map.on('click', function(e) {
         })}).addTo(map);
         marker.bindPopup(createWeatherMarkerPopup(e.latlng.lat, e.latlng.lng, data, id), { maxWidth: 280 }).openPopup();
         weatherMarkers.push({ id, marker });
-    } else if (appMode === 'tour' && tourDrawing) {
+    } else if (appMode === 'tour' && tourDrawing && activeTourTab === 'planlegg') {
         addTourWaypoint(e.latlng.lat, e.latlng.lng);
     }
 });
@@ -1264,6 +1355,8 @@ function switchMode(mode) {
         // Hide NVE layers when in weather mode
         if (steepnessLayer && map.hasLayer(steepnessLayer)) map.removeLayer(steepnessLayer);
         if (avalancheLayer && map.hasLayer(avalancheLayer)) map.removeLayer(avalancheLayer);
+        // Clear topptur route overlay
+        if (typeof clearToppturRoute === 'function') clearToppturRoute();
         drawOverlay();
         if (activeTab==='wind' && animationEnabled) { initParticles(); animate(); }
     } else {
@@ -1311,6 +1404,262 @@ document.getElementById('particleToggle').addEventListener('click', function() {
     if (animationEnabled) { initParticles(); animate(); }
     else { if(animFrameId) cancelAnimationFrame(animFrameId); windCtx.clearRect(0,0,windCanvas.width,windCanvas.height); }
 });
+
+// =====================================================================
+// TOPPTUR DATABASE — curated Sogn & Sunnfjord area
+// =====================================================================
+const toppturer = [
+    {
+        id: 1, name: 'Bl\u00e5fjellet', altitude: 1397, area: 'Balestrand, Sogn',
+        distance: 8.5, elevationGain: 1100, difficulty: 'middels',
+        season: 'Feb\u2013Mai', aspect: 'N/N\u00d8',
+        lat: 61.2035, lng: 6.5281,
+        route: [[61.1880,6.5350],[61.1920,6.5330],[61.1960,6.5310],[61.1990,6.5290],[61.2010,6.5280],[61.2035,6.5281]],
+        description: 'Popul\u00e6r topptur med flott utsikt over Sognefjorden. Ruten g\u00e5r fra Dragsvik og f\u00f8lger ryggen oppover. Fine forhold p\u00e5 sein vinter og v\u00e5r. Moderat bratt med noen brattere partier mot toppen.',
+        tips: 'Parker ved Dragsvik ferjekai. F\u00f8lg stien mot Storehaugen f\u00f8r du tar av mot Bl\u00e5fjellet.'
+    },
+    {
+        id: 2, name: 'Sk\u00f8rsn\u00f8se', altitude: 1453, area: 'L\u00e6rdal / Aurland, Sogn',
+        distance: 10, elevationGain: 1200, difficulty: 'krevende',
+        season: 'Mar\u2013Mai', aspect: 'N\u00d8',
+        lat: 61.0250, lng: 7.5200,
+        route: [[61.0100,7.5400],[61.0140,7.5350],[61.0180,7.5300],[61.0210,7.5260],[61.0250,7.5200]],
+        description: 'Krevende topptur i Aurland med spektakul\u00e6r utsikt over fjordlandskapet. Bratte partier krever god kondisjon og erfaring. Fantastisk nedkj\u00f8ring p\u00e5 v\u00e5ren.',
+        tips: 'Start tidlig for best f\u00f8re. Vurder skredfare n\u00f8ye i nordsiden.'
+    },
+    {
+        id: 3, name: 'Molden', altitude: 1116, area: 'Luster, Sogn',
+        distance: 6, elevationGain: 850, difficulty: 'enkel',
+        season: 'Jan\u2013Apr', aspect: 'V/NV',
+        lat: 61.3850, lng: 7.3900,
+        route: [[61.3750,7.3800],[61.3780,7.3840],[61.3810,7.3870],[61.3830,7.3890],[61.3850,7.3900]],
+        description: 'En av de mest popul\u00e6re toppturene i Sogn. Ruten fra Kriken er godt kjennemerket. Fra toppen ser du hele Lustrafjorden, Jostedalsbreen og Hurrungane. Perfekt f\u00f8rstetur.',
+        tips: 'Parker ved Molden skisenter. Godt merket rute hele veien.'
+    },
+    {
+        id: 4, name: 'Store Dyrhaugstinden', altitude: 2147, area: 'Hurrungane, Luster',
+        distance: 14, elevationGain: 1600, difficulty: 'krevende',
+        season: 'Apr\u2013Jun', aspect: 'S\u00d8',
+        lat: 61.4700, lng: 7.8300,
+        route: [[61.4500,7.8100],[61.4550,7.8150],[61.4600,7.8200],[61.4650,7.8250],[61.4700,7.8300]],
+        description: 'Norges flotteste randonee-tur if\u00f8lge mange. Lang dag med krevende terreng i Hurrungane. Spektakul\u00e6r nedkj\u00f8ring. Krever alpint utstyr og breferdighet.',
+        tips: 'Start fra Turtagr\u00f8. Tidlig start er essensielt. Hjelm anbefales p\u00e5 de bratteste partiene.'
+    },
+    {
+        id: 5, name: 'Sk\u00e5lat\u00e5rnet', altitude: 1848, area: 'Loen, Stryn',
+        distance: 16, elevationGain: 1800, difficulty: 'krevende',
+        season: 'Mar\u2013Jun', aspect: 'S/SV',
+        lat: 61.8400, lng: 6.8700,
+        route: [[61.8650,6.8500],[61.8600,6.8550],[61.8550,6.8600],[61.8500,6.8650],[61.8450,6.8680],[61.8400,6.8700]],
+        description: 'Ikonisk tur til det ber\u00f8mte Sk\u00e5lat\u00e5rnet, Norges h\u00f8yeste fristående steinbygning. Lang og krevende dag p\u00e5 ski med fantastisk utsikt. Overnattingsmulighet i t\u00e5rnet.',
+        tips: 'Start fra Tjugen i Loen. Sv\u00e6rt lang dag \u2014 mange velger \u00e5 overnatte.'
+    },
+    {
+        id: 6, name: 'Vogga', altitude: 1543, area: 'Fjordane, J\u00f8lster',
+        distance: 9, elevationGain: 1200, difficulty: 'middels',
+        season: 'Feb\u2013Apr', aspect: 'N',
+        lat: 61.5200, lng: 6.3600,
+        route: [[61.5050,6.3500],[61.5100,6.3530],[61.5130,6.3560],[61.5170,6.3580],[61.5200,6.3600]],
+        description: 'Flott topptur med utsikt mot J\u00f8lstravatnet og Sunnfjord-alpene. Moderate vanskelighetsgrad med noen brattere partier. God sn\u00f8sikkerhet p\u00e5 nordsiden.',
+        tips: 'Start fra Skei. God parkeringsmulighet ved veien.'
+    },
+    {
+        id: 7, name: 'Lodalskåpa', altitude: 2083, area: 'Loen, Stryn',
+        distance: 18, elevationGain: 2050, difficulty: 'krevende',
+        season: 'Apr\u2013Jun', aspect: '\u00d8/S\u00d8',
+        lat: 61.8100, lng: 7.0200,
+        route: [[61.8400,7.0000],[61.8350,7.0050],[61.8300,7.0100],[61.8200,7.0150],[61.8100,7.0200]],
+        description: 'Jostedalsbreen nasjonalparks h\u00f8yeste topp. Ekstremt krevende og lang tur som krever breerfaring, tau og isøks. Belønningen er en av Vestlandets beste utsikter.',
+        tips: 'Krever breerfaring. Anbefales med f\u00f8rer f\u00f8rste gang.'
+    },
+    {
+        id: 8, name: 'Hest', altitude: 1390, area: 'Vik, Sogn',
+        distance: 7, elevationGain: 1050, difficulty: 'middels',
+        season: 'Feb\u2013Apr', aspect: 'NV',
+        lat: 61.0700, lng: 6.5800,
+        route: [[61.0550,6.5700],[61.0600,6.5730],[61.0640,6.5760],[61.0670,6.5780],[61.0700,6.5800]],
+        description: 'Klassisk topptur i Vik med panoramautsikt over Sognefjorden. Ruten er variert med skog nederst og \u00e5pent terreng h\u00f8yere opp. Nydelig nedkj\u00f8ring i pudder.',
+        tips: 'Parkering langs veien mot Fresvik. F\u00f8lg merket sti til skoggrensen.'
+    },
+    {
+        id: 9, name: 'Ceciliekruna', altitude: 1775, area: 'Hurrungane, Luster',
+        distance: 12, elevationGain: 1400, difficulty: 'krevende',
+        season: 'Mar\u2013Jun', aspect: 'N/NV',
+        lat: 61.4800, lng: 7.7800,
+        route: [[61.4600,7.7600],[61.4650,7.7650],[61.4700,7.7700],[61.4750,7.7750],[61.4800,7.7800]],
+        description: 'En av de store klassikerne i Hurrungane. Teknisk krevende med eksponerte partier. Belønningen er en av Norges mest dramatiske utsikter, omgitt av 2000-meters topper.',
+        tips: 'Start fra Turtagr\u00f8. Stegjern og isøks kan v\u00e6re n\u00f8dvendig.'
+    },
+    {
+        id: 10, name: 'Fanaråken', altitude: 2068, area: 'Jotunheimen, Luster',
+        distance: 15, elevationGain: 1500, difficulty: 'krevende',
+        season: 'Apr\u2013Jun', aspect: 'S/SV',
+        lat: 61.5200, lng: 7.9000,
+        route: [[61.5000,7.8800],[61.5050,7.8840],[61.5100,7.8900],[61.5150,7.8950],[61.5200,7.9000]],
+        description: 'H\u00f8yt og majestetisk med DNT-hytte p\u00e5 toppen. Spektakul\u00e6r 360-graders utsikt over hele Jotunheimen. Lang dag, men godt merket rute. Mulighet for overnatting.',
+        tips: 'DNT-hytte p\u00e5 toppen (betjent i sesong). Flott \u00e5 kombinere med overnatting.'
+    },
+    {
+        id: 11, name: 'Ramnaberg', altitude: 1358, area: 'Leikanger, Sogn',
+        distance: 6.5, elevationGain: 1050, difficulty: 'middels',
+        season: 'Jan\u2013Apr', aspect: 'N\u00d8',
+        lat: 61.1750, lng: 6.8100,
+        route: [[61.1600,6.8000],[61.1650,6.8030],[61.1700,6.8060],[61.1750,6.8100]],
+        description: 'Kort men bratt topptur med fantastisk utsikt over Sognefjorden og Leikanger. Popul\u00e6r blant lokale. Rask tilgang til fjellet fra bygda.',
+        tips: 'Start fra Hermansverk. Kan v\u00e6re bratt i starten.'
+    },
+    {
+        id: 12, name: 'Storehaugen', altitude: 1170, area: 'Sogndal, Sogn',
+        distance: 5, elevationGain: 900, difficulty: 'enkel',
+        season: 'Jan\u2013Apr', aspect: 'V/NV',
+        lat: 61.2200, lng: 7.0500,
+        route: [[61.2100,7.0600],[61.2130,7.0570],[61.2160,7.0540],[61.2200,7.0500]],
+        description: 'N\u00e6rturen for Sogndal! Kort tilkomst og fin utsikt. Perfekt for en halvdagstur p\u00e5 ski. Trygg tur med lite skredfare p\u00e5 normalruten.',
+        tips: 'Parker ved Hodlekve skisenter. Enkelt \u00e5 kombinere med alpint.'
+    }
+];
+
+let activeTourTab = 'toppturer';
+let selectedTopptur = null;
+let toppturRouteLayer = null;
+let toppturSummitMarker = null;
+
+function getDifficultyBadge(diff) {
+    if (diff === 'enkel') return '<span class="tt-badge tt-badge-easy">Enkel</span>';
+    if (diff === 'middels') return '<span class="tt-badge tt-badge-moderate">Middels</span>';
+    return '<span class="tt-badge tt-badge-hard">Krevende</span>';
+}
+
+function renderToppturList() {
+    const list = document.getElementById('toppturList');
+    const detail = document.getElementById('toppturDetail');
+    list.style.display = ''; detail.style.display = 'none'; detail.classList.remove('active');
+    selectedTopptur = null; clearToppturRoute();
+
+    list.innerHTML = toppturer.map(t => {
+        return '<div class="topptur-card" onclick="showToppturDetail(' + t.id + ')">' +
+            '<div class="tt-header">' +
+                '<span class="tt-icon">\u26F7\uFE0F</span>' +
+                '<div><div class="tt-title">' + t.name + ' (' + t.altitude + ' moh)</div>' +
+                '<div class="tt-subtitle">' + t.area + '</div></div>' +
+            '</div>' +
+            '<div class="tt-stats">' +
+                '<span class="tt-stat">\u2195 <span class="tt-stat-val">' + t.elevationGain + ' m</span></span>' +
+                '<span class="tt-stat">\u27F6 <span class="tt-stat-val">' + t.distance + ' km</span></span>' +
+                '<span class="tt-stat">\u2B06 <span class="tt-stat-val">' + t.altitude + ' m</span></span>' +
+            '</div>' +
+            '<div class="tt-badges">' +
+                getDifficultyBadge(t.difficulty) +
+                '<span class="tt-badge tt-badge-season">' + t.season + '</span>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function showToppturDetail(id) {
+    const t = toppturer.find(x => x.id === id);
+    if (!t) return;
+    selectedTopptur = t;
+
+    const list = document.getElementById('toppturList');
+    const detail = document.getElementById('toppturDetail');
+    list.style.display = 'none';
+    detail.style.display = 'block'; detail.classList.add('active');
+
+    detail.innerHTML =
+        '<button class="tt-detail-back" onclick="renderToppturList()">\u2190 Tilbake til listen</button>' +
+        '<div class="tt-detail-name">\u26F7\uFE0F ' + t.name + '</div>' +
+        '<div class="tt-detail-area">' + t.area + ' &middot; ' + getDifficultyBadge(t.difficulty) + '</div>' +
+        '<div class="tt-detail-stats">' +
+            '<div class="tt-detail-stat"><div class="ds-label">H\u00f8yde</div><div class="ds-val">' + t.altitude + ' m</div></div>' +
+            '<div class="tt-detail-stat"><div class="ds-label">Stigning</div><div class="ds-val">' + t.elevationGain + ' m</div></div>' +
+            '<div class="tt-detail-stat"><div class="ds-label">Distanse</div><div class="ds-val">' + t.distance + ' km</div></div>' +
+            '<div class="tt-detail-stat"><div class="ds-label">Eksposisjon</div><div class="ds-val">' + t.aspect + '</div></div>' +
+        '</div>' +
+        '<div class="tt-detail-desc">' +
+            '<div style="margin-bottom:8px;">' + t.description + '</div>' +
+            '<div style="color:#7ec8e3;font-size:11px;font-weight:600;">Tips:</div>' +
+            '<div style="font-size:11px;color:#888;">' + t.tips + '</div>' +
+        '</div>' +
+        '<div class="tt-detail-actions">' +
+            '<button class="tour-btn" onclick="showToppturOnMap(' + t.id + ')">\uD83D\uDDFA\uFE0F Vis p\u00e5 kart</button>' +
+            '<button class="tour-btn" onclick="planFromTopptur(' + t.id + ')">\u270E Planlegg rute</button>' +
+        '</div>';
+
+    // Show route on map
+    showToppturOnMap(t.id);
+}
+
+function clearToppturRoute() {
+    if (toppturRouteLayer) { map.removeLayer(toppturRouteLayer); toppturRouteLayer = null; }
+    if (toppturSummitMarker) { map.removeLayer(toppturSummitMarker); toppturSummitMarker = null; }
+}
+
+function showToppturOnMap(id) {
+    const t = toppturer.find(x => x.id === id);
+    if (!t) return;
+    clearToppturRoute();
+
+    // Draw route
+    if (t.route && t.route.length >= 2) {
+        toppturRouteLayer = L.polyline(t.route, {
+            color: '#f39c12', weight: 3, opacity: 0.9, dashArray: '8,6'
+        }).addTo(map);
+    }
+
+    // Summit marker
+    toppturSummitMarker = L.marker([t.lat, t.lng], {
+        icon: L.divIcon({
+            className: '',
+            html: '<div style="background:rgba(243,156,18,0.95);color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.3);">\u26F7 ' + t.name + ' ' + t.altitude + 'm</div>',
+            iconSize: [0, 0], iconAnchor: [-5, 15]
+        })
+    }).addTo(map);
+
+    // Pan map to tour area
+    if (t.route && t.route.length >= 2) {
+        map.fitBounds(toppturRouteLayer.getBounds().pad(0.3));
+    } else {
+        map.setView([t.lat, t.lng], 13);
+    }
+}
+
+function planFromTopptur(id) {
+    const t = toppturer.find(x => x.id === id);
+    if (!t || !t.route) return;
+
+    // Switch to planlegg tab and populate route
+    switchTourTab('planlegg');
+    clearTourRoute();
+    clearToppturRoute();
+
+    // Add each route point as a tour waypoint
+    t.route.forEach(pt => {
+        addTourWaypoint(pt[0], pt[1]);
+    });
+}
+
+// Tour section tab switching
+function switchTourTab(tab) {
+    activeTourTab = tab;
+    document.querySelectorAll('.tour-section-tab').forEach(t => t.classList.toggle('active', t.dataset.tourtab === tab));
+    document.querySelectorAll('.tour-section-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tourtab-' + tab).classList.add('active');
+
+    if (tab === 'toppturer' && !selectedTopptur) {
+        renderToppturList();
+    }
+    if (tab === 'planlegg') {
+        clearToppturRoute();
+    }
+}
+
+document.querySelectorAll('.tour-section-tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTourTab(tab.dataset.tourtab));
+});
+
+// Render list on initial load
+renderToppturList();
 
 // Tour buttons
 document.getElementById('btnDrawRoute').addEventListener('click', function() { tourDrawing=!tourDrawing; this.classList.toggle('active',tourDrawing); });
