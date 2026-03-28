@@ -264,10 +264,9 @@
 
     // === MAP ===
     const map = L.map('map', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 10);
-    L.tileLayer('https://cache{s}.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
+    L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
         attribution: '&copy; <a href="https://kartverket.no">Kartverket</a> | Vind: Open-Meteo',
-        maxZoom: 18,
-        subdomains: ['', '2', '3']
+        maxZoom: 18
     }).addTo(map);
 
     const centerMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
