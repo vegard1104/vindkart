@@ -870,108 +870,70 @@ function precipColor(mm) { if(mm<0.1) return 'rgba(44,62,80,0.3)'; if(mm<1) retu
 function weatherCodeColor(c) { if(c===0) return 'rgba(243,156,18,0.8)'; if(c<=3) return 'rgba(149,165,166,0.7)'; if(c===45||c===48) return 'rgba(189,195,199,0.6)'; if(c>=51&&c<=67) return 'rgba(52,152,219,0.8)'; if(c>=71&&c<=77) return 'rgba(236,240,241,0.8)'; if(c>=80&&c<=86) return 'rgba(52,152,219,0.8)'; if(c>=95) return 'rgba(155,89,182,0.9)'; return 'rgba(149,165,166,0.5)'; }
 
 // =====================================================================
-// PARTICLE SYSTEM (optimized for performance)
+// PARTICLE SYSTEM
 // =====================================================================
 
-// Lightweight wind-only interpolation (avoids computing all 17 params)
-function getWindAtLatLng(lat, lng) {
-    const grid = weatherGrid[selectedDate];
-    if (!grid || !grid[currentHour]) return null;
-    const data = grid[currentHour];
-    const latStep = gridLats.length > 1 ? gridLats[1] - gridLats[0] : 1;
-    const lngStep = gridLngs.length > 1 ? gridLngs[1] - gridLngs[0] : 1;
-    const fi = (lat - gridLats[0]) / latStep;
-    const fj = (lng - gridLngs[0]) / lngStep;
-    const i0 = Math.max(0, Math.min(gridLats.length - 2, Math.floor(fi)));
-    const j0 = Math.max(0, Math.min(gridLngs.length - 2, Math.floor(fj)));
-    const ti = Math.max(0, Math.min(1, fi - i0));
-    const tj = Math.max(0, Math.min(1, fj - j0));
-    const i1 = i0 + 1, j1 = j0 + 1;
-    const w00=(1-ti)*(1-tj), w01=(1-ti)*tj, w10=ti*(1-tj), w11=ti*tj;
-    const speed = data.speeds[i0][j0]*w00 + data.speeds[i0][j1]*w01 + data.speeds[i1][j0]*w10 + data.speeds[i1][j1]*w11;
-    const d00=data.dirs[i0][j0], d01=data.dirs[i0][j1], d10=data.dirs[i1][j0], d11=data.dirs[i1][j1];
-    const deg2rad = Math.PI / 180;
-    const sx = Math.sin(d00*deg2rad)*w00+Math.sin(d01*deg2rad)*w01+Math.sin(d10*deg2rad)*w10+Math.sin(d11*deg2rad)*w11;
-    const sy = Math.cos(d00*deg2rad)*w00+Math.cos(d01*deg2rad)*w01+Math.cos(d10*deg2rad)*w10+Math.cos(d11*deg2rad)*w11;
-    let dir = Math.atan2(sx, sy) * 180 / Math.PI;
-    if (dir < 0) dir += 360;
-    return { dir, speed };
-}
-
-// Pre-computed RGBA color strings to avoid string manipulation per frame
-const windColorCache = {};
-function getWindRGBA(speed, alpha) {
-    const key = (speed < 2 ? 0 : speed < 5 ? 1 : speed < 8 ? 2 : speed < 11 ? 3 : speed < 14 ? 4 : speed < 18 ? 5 : 6);
-    const cacheKey = key + '_' + (alpha * 100 | 0);
-    if (windColorCache[cacheKey]) return windColorCache[cacheKey];
-    const colors = [[74,158,190],[100,200,220],[46,204,113],[241,196,15],[230,126,34],[231,76,60],[142,68,173]];
-    const c = colors[key];
-    const result = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + alpha.toFixed(2) + ')';
-    windColorCache[cacheKey] = result;
-    return result;
-}
-
-// Cache map projection to avoid Leaflet DOM calls every frame
-let projCache = { zoom: -1, cx: 0, cy: 0, cLat: 0, cLng: 0, scale: 1 };
-function updateProjCache() {
-    const c = map.getCenter();
-    const z = map.getZoom();
-    const p = map.latLngToContainerPoint(c);
-    const p2 = map.latLngToContainerPoint([c.lat + 0.01, c.lng + 0.01]);
-    projCache = { zoom: z, cx: p.x, cy: p.y, cLat: c.lat, cLng: c.lng,
-        latPerPx: 0.01 / (p.y - p2.y), lngPerPx: 0.01 / (p2.x - p.x) };
-}
-function fastScreenToLatLng(x, y) {
-    return {
-        lat: projCache.cLat + (projCache.cy - y) * projCache.latPerPx,
-        lng: projCache.cLng + (x - projCache.cx) * projCache.lngPerPx
-    };
-}
-
 class WindParticle {
-    constructor() { this.reset(true); }
-    reset(randomAge = false) {
-        this.x = Math.random() * windCanvas.width; this.y = Math.random() * windCanvas.height;
+    constructor() { this.history = []; this.speed = 0; this.reset(true); }
+    reset(randomAge) {
+        this.x = Math.random() * windCanvas.width;
+        this.y = Math.random() * windCanvas.height;
         this.maxAge = 60 + Math.random() * 80;
         this.age = randomAge ? Math.random() * this.maxAge * 0.5 : 0;
-        this.hLen = 0; this.hx = new Float32Array(16); this.hy = new Float32Array(16); this.lastSpeed = 0;
+        this.history = [];
+        this.speed = 0;
     }
     update() {
         if (this.age >= this.maxAge) { this.reset(); return; }
         this.age++;
-        const pos = fastScreenToLatLng(this.x, this.y);
-        const w = getWindAtLatLng(pos.lat, pos.lng);
-        if (!w) return;
-        this.lastSpeed = w.speed;
-        const toRad = (w.dir + 180) % 360 * Math.PI / 180;
-        const sf = Math.max(0.5, w.speed * 0.35);
-        // Shift history ring buffer
-        if (this.hLen < 16) { this.hx[this.hLen] = this.x; this.hy[this.hLen] = this.y; this.hLen++; }
-        else { for(let i=0;i<15;i++){this.hx[i]=this.hx[i+1];this.hy[i]=this.hy[i+1];} this.hx[15]=this.x; this.hy[15]=this.y; }
-        this.x += Math.sin(toRad) * sf + (Math.random() - 0.5) * 0.8;
-        this.y += -Math.cos(toRad) * sf + (Math.random() - 0.5) * 0.8;
-        if (this.x<-10||this.x>windCanvas.width+10||this.y<-10||this.y>windCanvas.height+10) this.reset();
+        try {
+            const pos = screenToLatLng(this.x, this.y);
+            const d = getDataAtLatLng(pos.lat, pos.lng, selectedDate, currentHour);
+            if (!d) return;
+            this.speed = d.speed;
+            const toRad = (d.dir + 180) % 360 * Math.PI / 180;
+            const sf = Math.max(0.5, d.speed * 0.35);
+            this.history.push({ x: this.x, y: this.y });
+            if (this.history.length > 14) this.history.shift();
+            this.x += Math.sin(toRad) * sf + (Math.random() - 0.5) * 0.8;
+            this.y += -Math.cos(toRad) * sf + (Math.random() - 0.5) * 0.8;
+            if (this.x < -10 || this.x > windCanvas.width + 10 || this.y < -10 || this.y > windCanvas.height + 10) this.reset();
+        } catch(e) { /* skip frame on error */ }
     }
     draw(ctx) {
-        if (this.hLen < 2) return;
-        const lr = 1 - this.age / this.maxAge, ba = Math.min(1, lr * 1.2);
-        // Draw as single path for performance
+        if (this.history.length < 2) return;
+        const lr = 1 - this.age / this.maxAge;
+        const baseAlpha = Math.min(1, lr * 1.2);
+        const c = speedColor(this.speed);
+        // Draw trail
+        for (let i = 1; i < this.history.length; i++) {
+            const a = baseAlpha * (i / this.history.length) * 0.6;
+            ctx.beginPath();
+            ctx.moveTo(this.history[i-1].x, this.history[i-1].y);
+            ctx.lineTo(this.history[i].x, this.history[i].y);
+            ctx.strokeStyle = c.replace('rgb', 'rgba').replace(')', ',' + a.toFixed(2) + ')');
+            ctx.lineWidth = 1.2 + this.speed * 0.08;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+        // Draw line to current pos
+        const lastH = this.history[this.history.length - 1];
         ctx.beginPath();
-        ctx.moveTo(this.hx[0], this.hy[0]);
-        for (let i = 1; i < this.hLen; i++) ctx.lineTo(this.hx[i], this.hy[i]);
+        ctx.moveTo(lastH.x, lastH.y);
         ctx.lineTo(this.x, this.y);
-        ctx.strokeStyle = getWindRGBA(this.lastSpeed, ba * 0.6);
-        ctx.lineWidth = 1.2 + this.lastSpeed * 0.08;
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = c.replace('rgb', 'rgba').replace(')', ',' + (baseAlpha * 0.6).toFixed(2) + ')');
+        ctx.lineWidth = 1.2 + this.speed * 0.08;
+        ctx.lineCap = 'round';
         ctx.stroke();
         // Head dot
-        ctx.beginPath(); ctx.arc(this.x, this.y, 1.5 + this.lastSpeed * 0.08, 0, Math.PI * 2);
-        ctx.fillStyle = getWindRGBA(this.lastSpeed, Math.min(1, ba * 1.1));
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 1.5 + this.speed * 0.08, 0, Math.PI * 2);
+        ctx.fillStyle = c.replace('rgb', 'rgba').replace(')', ',' + Math.min(1, baseAlpha * 1.1).toFixed(2) + ')');
         ctx.fill();
     }
 }
 
-function initParticles() { particles = []; for (let i=0; i<particleCount; i++) particles.push(new WindParticle()); }
+function initParticles() { particles = []; for (let i = 0; i < particleCount; i++) particles.push(new WindParticle()); }
 
 // =====================================================================
 // OVERLAY RENDERING (temp/precip/weather)
@@ -1023,18 +985,27 @@ function drawWeatherPoint(ctx,x,y,code) {
 // ANIMATION LOOP
 // =====================================================================
 function animate() {
-    if (appMode !== 'weather' || activeTab !== 'wind' || !animationEnabled) {
-        windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);
-        if (appMode==='weather' && activeTab==='wind' && !animationEnabled) return;
-        if (appMode!=='weather' || activeTab!=='wind') { animFrameId=requestAnimationFrame(animate); return; }
-        return;
+    try {
+        if (appMode !== 'weather' || activeTab !== 'wind' || !animationEnabled) {
+            windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
+            if (appMode === 'weather' && activeTab === 'wind' && !animationEnabled) return;
+            if (appMode !== 'weather' || activeTab !== 'wind') { animFrameId = requestAnimationFrame(animate); return; }
+            return;
+        }
+        if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) {
+            animFrameId = requestAnimationFrame(animate);
+            return;
+        }
+        windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
+        while (particles.length < particleCount) particles.push(new WindParticle());
+        while (particles.length > particleCount) particles.pop();
+        for (let i = 0; i < particles.length; i++) {
+            particles[i].update();
+            particles[i].draw(windCtx);
+        }
+    } catch(e) {
+        console.error('Wind animation error:', e);
     }
-    if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) { animFrameId=requestAnimationFrame(animate); return; }
-    windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);
-    updateProjCache(); // Cache map projection once per frame
-    while (particles.length<particleCount) particles.push(new WindParticle());
-    while (particles.length>particleCount) particles.pop();
-    for (const p of particles) { p.update(); p.draw(windCtx); }
     animFrameId = requestAnimationFrame(animate);
 }
 
@@ -1577,141 +1548,18 @@ document.getElementById('particleToggle').addEventListener('click', function() {
 });
 
 // =====================================================================
-// TOPPTUR DATABASE — curated Sogn & Sunnfjord area
+// TOPPTUR SYSTEM — dynamic from API (Overpass + Kartverket WFS)
 // =====================================================================
-const toppturer = [
-    {
-        id: 1, name: 'Bl\u00e5fjellet', altitude: 1397, area: 'Sogndal, Sogn',
-        distance: 8.5, elevationGain: 1100, difficulty: 'middels',
-        season: 'Feb\u2013Mai', aspect: 'N/N\u00d8',
-        lat: 61.2015, lng: 7.0380,
-        img: 'https://images.unsplash.com/photo-1520962880247-cfaf541c8724?w=400&h=200&fit=crop',
-        route: [[61.2260,7.0710],[61.2252,7.0680],[61.2240,7.0645],[61.2228,7.0615],[61.2218,7.0590],[61.2205,7.0560],[61.2192,7.0535],[61.2178,7.0512],[61.2165,7.0490],[61.2150,7.0472],[61.2135,7.0458],[61.2118,7.0445],[61.2100,7.0432],[61.2082,7.0418],[61.2065,7.0405],[61.2048,7.0395],[61.2032,7.0388],[61.2015,7.0380]],
-        description: 'Popul\u00e6r topptur vest for Sogndalsdalen med flott utsikt mot indre Sogn, Hurrungane og Bleia. Ruten g\u00e5r fra Hodlekve skisenter og f\u00f8lger ryggen vestover. Fine forhold sein vinter/v\u00e5r.',
-        tips: 'Parker ved Hodlekve skisenter. F\u00f8lg preparert l\u00f8ype f\u00f8r du tar av mot ryggen vestover.'
-    },
-    {
-        id: 2, name: 'Sk\u00f8rsn\u00f8se', altitude: 1453, area: 'L\u00e6rdal / Aurland, Sogn',
-        distance: 10, elevationGain: 1200, difficulty: 'krevende',
-        season: 'Mar\u2013Mai', aspect: 'N\u00d8',
-        lat: 61.0870, lng: 7.5890,
-        img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&h=200&fit=crop',
-        route: [[61.0640,7.6200],[61.0652,7.6175],[61.0665,7.6148],[61.0680,7.6118],[61.0695,7.6090],[61.0708,7.6058],[61.0720,7.6030],[61.0733,7.6002],[61.0748,7.5978],[61.0762,7.5958],[61.0778,7.5942],[61.0795,7.5928],[61.0812,7.5916],[61.0830,7.5905],[61.0850,7.5896],[61.0870,7.5890]],
-        description: 'Krevende topptur p\u00e5 grensen mellom L\u00e6rdal og Aurland med spektakul\u00e6r utsikt over fjordlandskapet. Bratte partier krever god kondisjon og erfaring. Fantastisk nedkj\u00f8ring p\u00e5 v\u00e5ren.',
-        tips: 'Start tidlig for best f\u00f8re. Vurder skredfare n\u00f8ye i nordsiden.'
-    },
-    {
-        id: 3, name: 'Molden', altitude: 1116, area: 'Luster, Sogn',
-        distance: 6, elevationGain: 850, difficulty: 'enkel',
-        season: 'Jan\u2013Apr', aspect: 'V/NV',
-        lat: 61.3452, lng: 7.3163,
-        img: 'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=400&h=200&fit=crop',
-        route: [[61.3300,7.3050],[61.3308,7.3058],[61.3318,7.3065],[61.3328,7.3070],[61.3337,7.3076],[61.3345,7.3082],[61.3352,7.3088],[61.3360,7.3093],[61.3368,7.3098],[61.3375,7.3104],[61.3382,7.3110],[61.3390,7.3115],[61.3398,7.3120],[61.3408,7.3128],[61.3418,7.3135],[61.3428,7.3142],[61.3438,7.3150],[61.3445,7.3155],[61.3452,7.3163]],
-        description: 'En av de mest popul\u00e6re toppturene i Sogn. Ruten fra Krossen er godt kjennemerket. Fra toppen ser du hele Lustrafjorden, Jostedalsbreen og Hurrungane. Perfekt f\u00f8rstetur p\u00e5 randonee.',
-        tips: 'Parker ved Krossen (avkj\u00f8ring fra Rv55 mellom Hafslo og Marifjr\u00f8ra). Godt merket rute hele veien.'
-    },
-    {
-        id: 4, name: 'Store Dyrhaugstinden', altitude: 2147, area: 'Hurrungane, Luster',
-        distance: 14, elevationGain: 1260, difficulty: 'krevende',
-        season: 'Apr\u2013Jun', aspect: 'S\u00d8',
-        lat: 61.4620, lng: 7.8436,
-        img: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&h=200&fit=crop',
-        route: [[61.4230,7.8120],[61.4245,7.8128],[61.4262,7.8140],[61.4280,7.8155],[61.4298,7.8172],[61.4312,7.8190],[61.4325,7.8205],[61.4340,7.8218],[61.4355,7.8232],[61.4370,7.8248],[61.4388,7.8265],[61.4405,7.8282],[61.4420,7.8298],[61.4438,7.8312],[61.4455,7.8325],[61.4472,7.8340],[61.4490,7.8355],[61.4510,7.8368],[61.4530,7.8378],[61.4550,7.8388],[61.4570,7.8400],[61.4590,7.8412],[61.4608,7.8425],[61.4620,7.8436]],
-        description: 'Norges flotteste randonee-tur if\u00f8lge mange. Lang dag med krevende terreng i Hurrungane. Spektakul\u00e6r nedkj\u00f8ring fra 2147 moh. Krever alpint utstyr.',
-        tips: 'Start fra Turtagr\u00f8 (884 moh). Tidlig start er essensielt. Hjelm anbefales p\u00e5 de bratteste partiene.'
-    },
-    {
-        id: 5, name: 'Sk\u00e5la', altitude: 1848, area: 'Loen, Stryn',
-        distance: 16, elevationGain: 1848, difficulty: 'krevende',
-        season: 'Mar\u2013Jun', aspect: 'S/SV',
-        lat: 61.8438, lng: 6.9075,
-        img: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=400&h=200&fit=crop',
-        route: [[61.8690,6.8700],[61.8682,6.8715],[61.8672,6.8732],[61.8660,6.8750],[61.8648,6.8768],[61.8635,6.8785],[61.8622,6.8800],[61.8610,6.8818],[61.8598,6.8835],[61.8585,6.8852],[61.8572,6.8868],[61.8560,6.8885],[61.8548,6.8900],[61.8535,6.8915],[61.8522,6.8932],[61.8510,6.8948],[61.8500,6.8965],[61.8490,6.8982],[61.8480,6.8998],[61.8470,6.9015],[61.8460,6.9035],[61.8452,6.9050],[61.8445,6.9065],[61.8438,6.9075]],
-        description: 'Ikonisk tur til Sk\u00e5lat\u00e5rnet, Norges h\u00f8yeste frist\u00e5ende steinbygning (1848 moh). Lang og krevende dag fra fjordniv\u00e5 til toppen. Overnattingsmulighet i t\u00e5rnet.',
-        tips: 'Start fra Tjugen ved Hotel Alexandra i Loen. Sv\u00e6rt lang dag \u2014 mange velger \u00e5 overnatte i t\u00e5rnet.'
-    },
-    {
-        id: 6, name: 'Vogga', altitude: 1543, area: 'Sunnfjord, J\u00f8lster',
-        distance: 9, elevationGain: 1200, difficulty: 'middels',
-        season: 'Feb\u2013Apr', aspect: 'N',
-        lat: 61.4500, lng: 6.3300,
-        img: 'https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=400&h=200&fit=crop',
-        route: [[61.4200,6.3100],[61.4215,6.3108],[61.4232,6.3118],[61.4248,6.3130],[61.4265,6.3142],[61.4280,6.3155],[61.4295,6.3168],[61.4310,6.3180],[61.4328,6.3192],[61.4345,6.3205],[61.4360,6.3218],[61.4375,6.3230],[61.4390,6.3242],[61.4408,6.3252],[61.4425,6.3262],[61.4442,6.3272],[61.4460,6.3280],[61.4478,6.3288],[61.4500,6.3300]],
-        description: 'Flott topptur med utsikt mot J\u00f8lstravatnet og Sunnfjord-alpene. Moderat vanskelighetsgrad med noen brattere partier. God sn\u00f8sikkerhet p\u00e5 nordsiden.',
-        tips: 'Start fra Skei i J\u00f8lster. God parkeringsmulighet ved veien.'
-    },
-    {
-        id: 7, name: 'Lodal\u0073k\u00e5pa', altitude: 2083, area: 'Jostedalsbreen, Stryn/Luster',
-        distance: 18, elevationGain: 2050, difficulty: 'krevende',
-        season: 'Apr\u2013Jun', aspect: '\u00d8/S\u00d8',
-        lat: 61.7910, lng: 7.0050,
-        img: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=400&h=200&fit=crop',
-        route: [[61.8350,6.9800],[61.8340,6.9808],[61.8328,6.9815],[61.8315,6.9822],[61.8302,6.9830],[61.8288,6.9838],[61.8275,6.9845],[61.8260,6.9852],[61.8245,6.9860],[61.8230,6.9868],[61.8215,6.9876],[61.8198,6.9885],[61.8180,6.9895],[61.8162,6.9905],[61.8145,6.9915],[61.8125,6.9928],[61.8105,6.9940],[61.8085,6.9952],[61.8065,6.9965],[61.8042,6.9978],[61.8020,6.9992],[61.7995,7.0008],[61.7968,7.0025],[61.7942,7.0038],[61.7910,7.0050]],
-        description: 'Jostedalsbreen nasjonalparks h\u00f8yeste topp (2083 moh). Ekstremt krevende og lang tur som krever breerfaring, tau og is\u00f8ks. Belønningen er en av Vestlandets beste utsikter.',
-        tips: 'Start fra B\u00f8dalen via Loen. Krever breerfaring. Anbefales med f\u00f8rer f\u00f8rste gang.'
-    },
-    {
-        id: 8, name: 'Hest', altitude: 1390, area: 'Vik, Sogn',
-        distance: 7, elevationGain: 1050, difficulty: 'middels',
-        season: 'Feb\u2013Apr', aspect: 'NV',
-        lat: 61.0670, lng: 6.5530,
-        img: 'https://images.unsplash.com/photo-1491002052546-bf38f186af56?w=400&h=200&fit=crop',
-        route: [[61.0470,6.5350],[61.0480,6.5358],[61.0490,6.5368],[61.0500,6.5378],[61.0510,6.5390],[61.0522,6.5400],[61.0535,6.5410],[61.0545,6.5420],[61.0555,6.5432],[61.0565,6.5442],[61.0578,6.5452],[61.0590,6.5462],[61.0602,6.5472],[61.0615,6.5480],[61.0628,6.5490],[61.0640,6.5500],[61.0652,6.5510],[61.0662,6.5520],[61.0670,6.5530]],
-        description: 'Klassisk topptur i Vik med panoramautsikt over Sognefjorden. Ruten er variert med skog nederst og \u00e5pent terreng h\u00f8yere opp. Nydelig nedkj\u00f8ring i pudder.',
-        tips: 'Start fra Vik sentrum eller langs veien mot Fresvik. F\u00f8lg merket sti til skoggrensen.'
-    },
-    {
-        id: 9, name: 'Ceciliekruna', altitude: 1775, area: 'Hurrungane, Luster',
-        distance: 12, elevationGain: 890, difficulty: 'krevende',
-        season: 'Mar\u2013Jun', aspect: 'N/NV',
-        lat: 61.4650, lng: 7.7700,
-        img: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=200&fit=crop',
-        route: [[61.4230,7.8120],[61.4248,7.8108],[61.4265,7.8092],[61.4282,7.8075],[61.4298,7.8058],[61.4315,7.8040],[61.4330,7.8020],[61.4348,7.8000],[61.4365,7.7982],[61.4382,7.7965],[61.4398,7.7948],[61.4415,7.7930],[61.4432,7.7912],[61.4450,7.7895],[61.4468,7.7878],[61.4488,7.7860],[61.4508,7.7842],[61.4528,7.7825],[61.4548,7.7808],[61.4570,7.7790],[61.4590,7.7770],[61.4610,7.7748],[61.4628,7.7728],[61.4642,7.7712],[61.4650,7.7700]],
-        description: 'En av de store klassikerne i Hurrungane. Teknisk krevende med eksponerte partier. Belønningen er en av Norges mest dramatiske utsikter, omgitt av 2000-meters topper.',
-        tips: 'Start fra Turtagr\u00f8 (884 moh). Stegjern og is\u00f8ks kan v\u00e6re n\u00f8dvendig.'
-    },
-    {
-        id: 10, name: 'Fanar\u00e5ken', altitude: 2068, area: 'Jotunheimen, Luster',
-        distance: 15, elevationGain: 700, difficulty: 'krevende',
-        season: 'Apr\u2013Jun', aspect: 'S/SV',
-        lat: 61.5167, lng: 7.9089,
-        img: 'https://images.unsplash.com/photo-1434394354979-a235cd36269d?w=400&h=200&fit=crop',
-        route: [[61.4990,7.8780],[61.5000,7.8792],[61.5010,7.8805],[61.5020,7.8818],[61.5028,7.8832],[61.5035,7.8848],[61.5042,7.8862],[61.5050,7.8878],[61.5058,7.8892],[61.5065,7.8908],[61.5072,7.8922],[61.5080,7.8938],[61.5088,7.8952],[61.5098,7.8968],[61.5108,7.8982],[61.5118,7.8998],[61.5128,7.9015],[61.5138,7.9032],[61.5148,7.9050],[61.5158,7.9068],[61.5167,7.9089]],
-        description: 'H\u00f8yt og majestetisk med DNT-hytte p\u00e5 toppen (2068 moh). Spektakul\u00e6r 360-graders utsikt over hele Jotunheimen. Mulighet for overnatting p\u00e5 Fanar\u00e5khytta.',
-        tips: 'Start fra Sognefjellshytta eller Turtagr\u00f8. DNT-hytte p\u00e5 toppen (betjent i sesong). Flott \u00e5 kombinere med overnatting.'
-    },
-    {
-        id: 11, name: 'Ramnaberg', altitude: 1358, area: 'Leikanger, Sogn',
-        distance: 6.5, elevationGain: 1050, difficulty: 'middels',
-        season: 'Jan\u2013Apr', aspect: 'N\u00d8',
-        lat: 61.1690, lng: 6.8200,
-        img: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&h=200&fit=crop',
-        route: [[61.1870,6.8100],[61.1862,6.8105],[61.1855,6.8110],[61.1848,6.8116],[61.1840,6.8122],[61.1832,6.8128],[61.1822,6.8135],[61.1812,6.8142],[61.1802,6.8148],[61.1792,6.8155],[61.1780,6.8160],[61.1768,6.8165],[61.1755,6.8170],[61.1742,6.8175],[61.1728,6.8180],[61.1715,6.8185],[61.1702,6.8190],[61.1690,6.8200]],
-        description: 'Kort men bratt topptur med fantastisk utsikt over Sognefjorden og Leikanger. Popul\u00e6r blant lokale. Rask tilgang til fjellet fra bygda.',
-        tips: 'Start fra Hermansverk. Bratt i starten, men flott utsikt allerede fr\u00e5 halvveis.'
-    },
-    {
-        id: 12, name: 'Storehaugen', altitude: 1170, area: 'Sogndal, Sogn',
-        distance: 5, elevationGain: 900, difficulty: 'enkel',
-        season: 'Jan\u2013Apr', aspect: 'V/NV',
-        lat: 61.2100, lng: 7.0500,
-        img: 'https://images.unsplash.com/photo-1485160497022-3e09382fb310?w=400&h=200&fit=crop',
-        route: [[61.2260,7.0710],[61.2255,7.0698],[61.2248,7.0685],[61.2240,7.0672],[61.2232,7.0658],[61.2225,7.0645],[61.2218,7.0632],[61.2210,7.0618],[61.2202,7.0605],[61.2195,7.0592],[61.2188,7.0578],[61.2178,7.0565],[61.2168,7.0552],[61.2158,7.0540],[61.2148,7.0528],[61.2138,7.0518],[61.2125,7.0510],[61.2112,7.0505],[61.2100,7.0500]],
-        description: 'N\u00e6rturen for Sogndal! Kort tilkomst fra Hodlekve og fin utsikt over Sognefjorden. Perfekt for en halvdagstur p\u00e5 ski. Trygg tur med lite skredfare p\u00e5 normalruten.',
-        tips: 'Parker ved Hodlekve skisenter. Enkelt \u00e5 kombinere med alpint.'
-    }
-];
-
+let allTours = []; // All tours fetched from APIs
 let activeTourTab = 'toppturer';
 let selectedTopptur = null;
 let toppturRouteLayer = null;
 let toppturSummitMarker = null;
 
-// Dynamic peaks from OpenStreetMap Overpass API
-let osmPeaks = [];
-let osmFetchTimer = null;
-let osmFetching = false;
-let lastOsmBounds = null;
+// API fetch state
+let tourFetchTimer = null;
+let tourFetching = false;
+let lastTourBounds = null;
 
 function getDifficultyBadge(diff) {
     if (diff === 'enkel') return '<span class="tt-badge tt-badge-easy">Enkel</span>';
@@ -1720,11 +1568,38 @@ function getDifficultyBadge(diff) {
     return '<span class="tt-badge tt-badge-season">' + diff + '</span>';
 }
 
-// Estimate difficulty from elevation alone (for OSM peaks without curated data)
-function estimateDifficulty(altitude) {
-    if (altitude < 1200) return 'enkel';
-    if (altitude < 1600) return 'middels';
+function estimateDifficulty(altitude, distance) {
+    if (altitude < 1200 && (!distance || distance < 8)) return 'enkel';
+    if (altitude < 1600 && (!distance || distance < 14)) return 'middels';
     return 'krevende';
+}
+
+// Estimate season from altitude
+function estimateSeason(altitude) {
+    if (altitude > 1800) return 'Apr\u2013Jun';
+    if (altitude > 1400) return 'Mar\u2013Jun';
+    if (altitude > 1000) return 'Feb\u2013Mai';
+    return 'Jan\u2013Apr';
+}
+
+// Calculate route distance from coordinates
+function calcRouteDistance(route) {
+    if (!route || route.length < 2) return null;
+    let dist = 0;
+    for (let i = 1; i < route.length; i++) {
+        dist += haversine(route[i-1][0], route[i-1][1], route[i][0], route[i][1]);
+    }
+    return Math.round(dist * 10) / 10;
+}
+
+// Estimate elevation gain from route endpoints (rough)
+function estimateElevationGain(route, peakAlt) {
+    if (!route || route.length < 2 || !peakAlt) return null;
+    // Estimate start altitude as peak minus rough gain based on distance
+    const dist = calcRouteDistance(route);
+    if (!dist) return null;
+    // Very rough estimate: typical Norwegian terrain
+    return Math.round(Math.min(peakAlt - 100, dist * 120));
 }
 
 // Get tours visible in current map viewport
@@ -1733,88 +1608,242 @@ function getVisibleTours() {
     const pad = 0.15;
     const s = bounds.getSouth() - pad, n = bounds.getNorth() + pad;
     const w = bounds.getWest() - pad, e = bounds.getEast() + pad;
-
-    // Filter curated tours
-    const curated = toppturer.filter(t => t.lat >= s && t.lat <= n && t.lng >= w && t.lng <= e)
-        .map(t => ({ ...t, source: 'curated' }));
-
-    // Filter OSM peaks (exclude those that are too close to curated tours to avoid duplicates)
-    const osm = osmPeaks.filter(p => {
-        if (p.lat < s || p.lat > n || p.lng < w || p.lng > e) return false;
-        // Skip if within ~1km of a curated tour
-        for (const ct of toppturer) {
-            if (haversine(p.lat, p.lng, ct.lat, ct.lng) < 1.0) return false;
-        }
-        return true;
-    }).map(p => ({ ...p, source: 'osm' }));
-
-    // Combine and sort by altitude descending
-    return [...curated, ...osm].sort((a, b) => b.altitude - a.altitude);
+    return allTours.filter(t => t.lat >= s && t.lat <= n && t.lng >= w && t.lng <= e)
+        .sort((a, b) => {
+            // Tours with routes first, then by altitude
+            if (a.route && !b.route) return -1;
+            if (!a.route && b.route) return 1;
+            return b.altitude - a.altitude;
+        });
 }
 
-// Fetch peaks from OpenStreetMap Overpass API
-async function fetchOsmPeaks() {
-    if (osmFetching) return;
+// =====================================================================
+// FETCH SKI TOURING ROUTES FROM OVERPASS API (GPS-precise)
+// =====================================================================
+async function fetchSkiTourRoutes(s, w, n, e) {
+    // Query for ski touring routes + peaks in one request
+    const query = '[out:json][timeout:25];(' +
+        'way["piste:type"="skitour"](' + s + ',' + w + ',' + n + ',' + e + ');' +
+        'relation["route"="ski"](' + s + ',' + w + ',' + n + ',' + e + ');' +
+        'way["piste:type"="downhill"]["sport"~"ski_touring|backcountry"](' + s + ',' + w + ',' + n + ',' + e + ');' +
+        'node["natural"="peak"](' + s + ',' + w + ',' + n + ',' + e + ');' +
+        ');out geom;';
+
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+    if (!res.ok) throw new Error('Overpass HTTP ' + res.status);
+    return await res.json();
+}
+
+// =====================================================================
+// FETCH ROUTES FROM KARTVERKET WFS (official trail data)
+// =====================================================================
+async function fetchKartverketRoutes(s, w, n, e) {
+    try {
+        // Try Kartverket WFS for Skiloype layer
+        const bbox = s + ',' + w + ',' + n + ',' + e + ',EPSG:4326';
+        const url = 'https://wfs.geonorge.no/skwms1/wfs.friluftsruter2?' +
+            'service=WFS&version=2.0.0&request=GetFeature' +
+            '&typeNames=Skiloype' +
+            '&outputFormat=application/json' +
+            '&bbox=' + bbox +
+            '&srsName=EPSG:4326&count=50';
+        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) return [];
+        const json = await res.json();
+        if (!json.features) return [];
+        return json.features;
+    } catch(e) {
+        console.warn('Kartverket WFS unavailable:', e.message);
+        return [];
+    }
+}
+
+// =====================================================================
+// MAIN TOUR FETCH — combines all API sources
+// =====================================================================
+async function fetchTourData() {
+    if (tourFetching) return;
     const bounds = map.getBounds();
     const zoom = map.getZoom();
 
-    // Only fetch peaks at reasonable zoom levels
-    if (zoom < 8) { osmPeaks = []; if (appMode === 'tour' && activeTourTab === 'toppturer' && !selectedTopptur) renderToppturList(); return; }
-
-    // Skip if bounds haven't changed significantly
-    if (lastOsmBounds) {
-        const cOld = lastOsmBounds.getCenter(), cNew = bounds.getCenter();
-        if (haversine(cOld.lat, cOld.lng, cNew.lat, cNew.lng) < 5 && Math.abs(map.getZoom() - lastOsmBounds._zoom) < 2) return;
+    // Only fetch at reasonable zoom levels
+    if (zoom < 8) {
+        allTours = [];
+        if (appMode === 'tour' && activeTourTab === 'toppturer' && !selectedTopptur) renderToppturList();
+        return;
     }
 
-    osmFetching = true;
+    // Skip if bounds haven't changed significantly
+    if (lastTourBounds) {
+        const cOld = lastTourBounds.getCenter(), cNew = bounds.getCenter();
+        if (haversine(cOld.lat, cOld.lng, cNew.lat, cNew.lng) < 3 && Math.abs(zoom - (lastTourBounds._zoom || 0)) < 2) return;
+    }
+
+    tourFetching = true;
     const s = bounds.getSouth().toFixed(4), w = bounds.getWest().toFixed(4);
     const n = bounds.getNorth().toFixed(4), e = bounds.getEast().toFixed(4);
 
-    // Overpass query for peaks >= 800m within bounds
-    const query = '[out:json][timeout:15];node["natural"="peak"]('+s+','+w+','+n+','+e+');out body;';
+    const tours = [];
+    let idCounter = 1;
+
     try {
-        const res = await fetch('https://overpass-api.de/api/interpreter', {
-            method: 'POST', body: 'data=' + encodeURIComponent(query),
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const json = await res.json();
+        // Fetch from Overpass (peaks + ski routes)
+        const osmData = await fetchSkiTourRoutes(s, w, n, e);
+        const elements = osmData.elements || [];
 
-        let idCounter = 10000;
-        osmPeaks = (json.elements || [])
-            .filter(el => el.tags && el.tags.name && el.tags.ele && parseFloat(el.tags.ele) >= 800)
-            .map(el => {
-                const alt = Math.round(parseFloat(el.tags.ele));
-                return {
-                    id: idCounter++,
-                    name: el.tags.name,
-                    altitude: alt,
-                    area: el.tags['is_in'] || el.tags['is_in:municipality'] || 'Vestland',
-                    distance: null,
-                    elevationGain: null,
-                    difficulty: estimateDifficulty(alt),
-                    season: alt > 1400 ? 'Mar\u2013Jun' : 'Jan\u2013Apr',
-                    aspect: null,
-                    lat: el.lat, lng: el.lon,
-                    route: null,
-                    description: 'Fjelltopp fra OpenStreetMap (' + alt + ' moh). Ingen detaljert turbeskrivelse tilgjengelig enn\u00e5.',
-                    tips: 'Sjekk lokale forhold og skredvarsel f\u00f8r turen.',
-                    source: 'osm'
-                };
+        // Separate peaks and routes
+        const peaks = elements.filter(el => el.type === 'node' && el.tags && el.tags.natural === 'peak' && el.tags.name && el.tags.ele && parseFloat(el.tags.ele) >= 800);
+        const routes = elements.filter(el => (el.type === 'way' || el.type === 'relation') && el.geometry && el.geometry.length >= 2);
+
+        // Build route objects from ski touring ways/relations
+        for (const rt of routes) {
+            const coords = rt.geometry.map(g => [g.lat, g.lon]);
+            if (coords.length < 2) continue;
+
+            const name = (rt.tags && rt.tags.name) || 'Skitur';
+            const dist = calcRouteDistance(coords);
+
+            // Find highest point along route for altitude
+            let maxLat = coords[coords.length - 1][0], maxLng = coords[coords.length - 1][1];
+            // Check if a named peak is near the route endpoint
+            let peakAlt = null, peakName = null;
+            const endPt = coords[coords.length - 1];
+            for (const pk of peaks) {
+                const d = haversine(endPt[0], endPt[1], pk.lat, pk.lon);
+                if (d < 1.5) {
+                    peakAlt = Math.round(parseFloat(pk.tags.ele));
+                    peakName = pk.tags.name;
+                    maxLat = pk.lat;
+                    maxLng = pk.lon;
+                    break;
+                }
+            }
+            // Also check start point
+            if (!peakAlt) {
+                const startPt = coords[0];
+                for (const pk of peaks) {
+                    const d = haversine(startPt[0], startPt[1], pk.lat, pk.lon);
+                    if (d < 1.5) {
+                        peakAlt = Math.round(parseFloat(pk.tags.ele));
+                        peakName = pk.tags.name;
+                        maxLat = pk.lat;
+                        maxLng = pk.lon;
+                        break;
+                    }
+                }
+            }
+
+            const alt = peakAlt || 0;
+            const displayName = peakName ? peakName + (name !== 'Skitur' && name !== peakName ? ' (' + name + ')' : '') : name;
+            const area = (rt.tags && (rt.tags['is_in'] || rt.tags['is_in:municipality'])) || 'Vestland';
+            const elGain = estimateElevationGain(coords, alt);
+            const pisteType = rt.tags && rt.tags['piste:type'];
+
+            tours.push({
+                id: idCounter++,
+                name: displayName,
+                altitude: alt,
+                area: area,
+                distance: dist,
+                elevationGain: elGain,
+                difficulty: estimateDifficulty(alt, dist),
+                season: estimateSeason(alt),
+                aspect: null,
+                lat: maxLat, lng: maxLng,
+                route: coords,
+                img: null,
+                description: 'Skiturrute fra OpenStreetMap' + (pisteType ? ' (' + pisteType + ')' : '') + '. ' + (dist ? dist + ' km' : '') + (alt ? ', topph\u00f8yde ' + alt + ' moh.' : '') + ' GPS-presis rute.',
+                tips: 'Sjekk lokale forhold og skredvarsel f\u00f8r turen. Ruten er hentet fra OpenStreetMap og b\u00f8r verifiseres i felt.',
+                source: 'osm-route'
             });
+        }
 
-        lastOsmBounds = bounds;
-        lastOsmBounds._zoom = zoom;
+        // Add peaks that don't have a nearby route
+        for (const pk of peaks) {
+            const alt = Math.round(parseFloat(pk.tags.ele));
+            // Skip if we already have a route near this peak
+            const hasRoute = tours.some(t => t.route && haversine(pk.lat, pk.lon, t.lat, t.lng) < 1.5);
+            if (hasRoute) continue;
 
-        // Refresh list if viewing toppturer
-        if (appMode === 'tour' && activeTourTab === 'toppturer' && !selectedTopptur) {
-            renderToppturList();
+            tours.push({
+                id: idCounter++,
+                name: pk.tags.name,
+                altitude: alt,
+                area: pk.tags['is_in'] || pk.tags['is_in:municipality'] || 'Vestland',
+                distance: null,
+                elevationGain: null,
+                difficulty: estimateDifficulty(alt),
+                season: estimateSeason(alt),
+                aspect: null,
+                lat: pk.lat, lng: pk.lon,
+                route: null,
+                img: null,
+                description: 'Fjelltopp fra OpenStreetMap (' + alt + ' moh). Ingen GPS-rute tilgjengelig enn\u00e5.',
+                tips: 'Sjekk lokale forhold og skredvarsel f\u00f8r turen.',
+                source: 'osm-peak'
+            });
         }
     } catch(e) {
-        console.warn('Overpass API fetch failed:', e);
+        console.warn('Overpass tour fetch failed:', e);
     }
-    osmFetching = false;
+
+    // Also try Kartverket WFS
+    try {
+        const wfsFeatures = await fetchKartverketRoutes(s, w, n, e);
+        for (const feat of wfsFeatures) {
+            if (!feat.geometry || !feat.geometry.coordinates) continue;
+            let coords;
+            if (feat.geometry.type === 'LineString') {
+                coords = feat.geometry.coordinates.map(c => [c[1], c[0]]);
+            } else if (feat.geometry.type === 'MultiLineString') {
+                coords = feat.geometry.coordinates[0].map(c => [c[1], c[0]]);
+            } else continue;
+            if (coords.length < 2) continue;
+
+            const name = (feat.properties && (feat.properties.navn || feat.properties.tuNavn || feat.properties.rutNavn)) || 'Kartverket-rute';
+            const dist = calcRouteDistance(coords);
+            // Check for duplicates (near existing routes)
+            const mid = coords[Math.floor(coords.length / 2)];
+            const isDupe = tours.some(t => t.route && haversine(mid[0], mid[1], t.lat, t.lng) < 0.5);
+            if (isDupe) continue;
+
+            tours.push({
+                id: idCounter++,
+                name: name,
+                altitude: 0,
+                area: (feat.properties && feat.properties.kommune) || 'Norge',
+                distance: dist,
+                elevationGain: null,
+                difficulty: 'middels',
+                season: 'Jan\u2013Apr',
+                aspect: null,
+                lat: coords[coords.length - 1][0],
+                lng: coords[coords.length - 1][1],
+                route: coords,
+                img: null,
+                description: 'Skil\u00f8ype/turute fra Kartverkets nasjonale rutebase. ' + (dist ? dist + ' km. ' : '') + 'GPS-presis rute.',
+                tips: 'Offisiell rute fra Kartverkets friluftsrutedatabase.',
+                source: 'kartverket'
+            });
+        }
+    } catch(e) {
+        console.warn('Kartverket WFS fetch failed:', e);
+    }
+
+    allTours = tours;
+    lastTourBounds = bounds;
+    lastTourBounds._zoom = zoom;
+
+    // Refresh list if viewing toppturer
+    if (appMode === 'tour' && activeTourTab === 'toppturer' && !selectedTopptur) {
+        renderToppturList();
+    }
+
+    tourFetching = false;
 }
 
 function renderToppturList() {
@@ -1826,63 +1855,69 @@ function renderToppturList() {
     const visible = getVisibleTours();
 
     if (visible.length === 0) {
+        const loading = tourFetching ? '<br><span style="color:#7ec8e3;">Henter turer fra API...</span>' : '';
         list.innerHTML = '<div style="text-align:center;padding:20px 10px;color:#555;font-size:12px;">' +
             '<div style="font-size:28px;margin-bottom:8px;">\u26F0\uFE0F</div>' +
-            'Ingen toppturer funnet i dette omr\u00e5det.<br><br>' +
+            'Ingen toppturer funnet i dette omr\u00e5det.' + loading + '<br><br>' +
             '<span style="color:#666;">Flytt kartet til et fjellomr\u00e5de for \u00e5 se tilgjengelige turer, eller zoom ut.</span></div>';
         return;
     }
 
-    const curatedCount = visible.filter(t => t.source === 'curated').length;
-    const osmCount = visible.filter(t => t.source === 'osm').length;
+    const withRoute = visible.filter(t => t.route).length;
+    const peaksOnly = visible.filter(t => !t.route).length;
+    const kvCount = visible.filter(t => t.source === 'kartverket').length;
 
     let header = '<div style="font-size:10px;color:#555;margin-bottom:8px;padding:0 2px;">' +
-        '\uD83D\uDCCD ' + visible.length + ' topper i kartutsnitt';
-    if (curatedCount > 0 && osmCount > 0) {
-        header += ' (' + curatedCount + ' med turbeskrivelse, ' + osmCount + ' fra OSM)';
-    }
+        '\uD83D\uDCCD ' + visible.length + ' turer i kartutsnitt';
+    if (withRoute > 0) header += ' (' + withRoute + ' med GPS-rute';
+    if (kvCount > 0) header += ', ' + kvCount + ' fra Kartverket';
+    if (withRoute > 0) header += ')';
+    if (tourFetching) header += ' <span style="color:#7ec8e3;">oppdaterer...</span>';
     header += '</div>';
 
     list.innerHTML = header + visible.map(t => {
-        const isCurated = t.source === 'curated';
-        const borderStyle = isCurated ? '' : 'border-left:3px solid rgba(155,89,182,0.4);';
-        const icon = isCurated ? '\u26F7\uFE0F' : '\u26F0\uFE0F';
+        const hasRoute = t.route && t.route.length >= 2;
+        const isKV = t.source === 'kartverket';
+        const borderColor = hasRoute ? (isKV ? 'rgba(46,204,113,0.5)' : 'rgba(243,156,18,0.5)') : 'rgba(155,89,182,0.4)';
+        const borderStyle = 'border-left:3px solid ' + borderColor + ';';
+        const icon = hasRoute ? '\u26F7\uFE0F' : '\u26F0\uFE0F';
+        const sourceLabel = isKV ? 'Kartverket' : 'OSM';
+        const sourceColor = isKV ? '#2ecc71' : '#9b59b6';
 
         let statsHtml = '';
         if (t.elevationGain) statsHtml += '<span class="tt-stat">\u2195 <span class="tt-stat-val">' + t.elevationGain + ' m</span></span>';
         if (t.distance) statsHtml += '<span class="tt-stat">\u27F6 <span class="tt-stat-val">' + t.distance + ' km</span></span>';
-        statsHtml += '<span class="tt-stat">\u2B06 <span class="tt-stat-val">' + t.altitude + ' m</span></span>';
+        if (t.altitude) statsHtml += '<span class="tt-stat">\u2B06 <span class="tt-stat-val">' + t.altitude + ' m</span></span>';
 
         const imgHtml = t.img
             ? '<img class="tt-img" src="' + t.img + '" alt="' + t.name + '" loading="lazy" onerror="this.outerHTML=\'<div class=tt-img-placeholder>' + icon + '</div>\'">'
-            : '<div class="tt-img-placeholder">' + icon + '</div>';
+            : '<div class="tt-img-placeholder">' + icon + (hasRoute ? '<div style="font-size:8px;margin-top:2px;color:rgba(255,255,255,0.5);">GPS</div>' : '') + '</div>';
 
-        return '<div class="topptur-card" style="' + borderStyle + '" onclick="showToppturDetail(' + t.id + ',\'' + t.source + '\')">' +
+        return '<div class="topptur-card" style="' + borderStyle + '" onclick="showToppturDetail(' + t.id + ')">' +
             imgHtml +
             '<div class="tt-body">' +
             '<div class="tt-header">' +
                 '<span class="tt-icon">' + icon + '</span>' +
-                '<div><div class="tt-title">' + t.name + ' (' + t.altitude + ' moh)</div>' +
-                '<div class="tt-subtitle">' + t.area + (isCurated ? '' : ' \u00b7 <span style="color:#9b59b6;">OSM</span>') + '</div></div>' +
+                '<div><div class="tt-title">' + t.name + (t.altitude ? ' (' + t.altitude + ' moh)' : '') + '</div>' +
+                '<div class="tt-subtitle">' + t.area + ' \u00b7 <span style="color:' + sourceColor + ';">' + sourceLabel + '</span></div></div>' +
             '</div>' +
             '<div class="tt-stats">' + statsHtml + '</div>' +
             '<div class="tt-badges">' +
                 getDifficultyBadge(t.difficulty) +
                 (t.season ? '<span class="tt-badge tt-badge-season">' + t.season + '</span>' : '') +
+                (hasRoute ? '<span class="tt-badge" style="background:rgba(46,204,113,0.15);color:#2ecc71;">GPS-rute</span>' : '') +
             '</div>' +
             '</div>' +
         '</div>';
     }).join('');
 }
 
-function findTourById(id, source) {
-    if (source === 'curated') return toppturer.find(x => x.id === id);
-    return osmPeaks.find(x => x.id === id);
+function findTourById(id) {
+    return allTours.find(x => x.id === id);
 }
 
-function showToppturDetail(id, source) {
-    source = source || 'curated';
-    const t = findTourById(id, source);
+function showToppturDetail(id) {
+    const t = findTourById(id);
     if (!t) return;
     selectedTopptur = t;
 
@@ -1891,20 +1926,25 @@ function showToppturDetail(id, source) {
     list.style.display = 'none';
     detail.style.display = 'block'; detail.classList.add('active');
 
-    const isCurated = source === 'curated';
-    const icon = isCurated ? '\u26F7\uFE0F' : '\u26F0\uFE0F';
+    const hasRoute = t.route && t.route.length >= 2;
+    const icon = hasRoute ? '\u26F7\uFE0F' : '\u26F0\uFE0F';
+    const isKV = t.source === 'kartverket';
+    const sourceLabel = isKV ? 'Kartverket' : 'OpenStreetMap';
+    const sourceColor = isKV ? '#2ecc71' : '#9b59b6';
 
-    let statsHtml = '<div class="tt-detail-stat"><div class="ds-label">H\u00f8yde</div><div class="ds-val">' + t.altitude + ' m</div></div>';
+    let statsHtml = '';
+    if (t.altitude) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">H\u00f8yde</div><div class="ds-val">' + t.altitude + ' m</div></div>';
     if (t.elevationGain) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Stigning</div><div class="ds-val">' + t.elevationGain + ' m</div></div>';
     if (t.distance) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Distanse</div><div class="ds-val">' + t.distance + ' km</div></div>';
     if (t.aspect) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Eksposisjon</div><div class="ds-val">' + t.aspect + '</div></div>';
-    if (!isCurated) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Kilde</div><div class="ds-val" style="color:#9b59b6;">OpenStreetMap</div></div>';
+    statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Kilde</div><div class="ds-val" style="color:' + sourceColor + ';">' + sourceLabel + '</div></div>';
+    if (hasRoute) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Rute</div><div class="ds-val" style="color:#2ecc71;">GPS-presis (' + t.route.length + ' pkt)</div></div>';
 
     let descHtml = '<div style="margin-bottom:8px;">' + t.description + '</div>';
     if (t.tips) descHtml += '<div style="color:#7ec8e3;font-size:11px;font-weight:600;">Tips:</div><div style="font-size:11px;color:#888;">' + t.tips + '</div>';
 
-    let actionsHtml = '<button class="tour-btn" onclick="showToppturOnMap(' + t.id + ',\'' + source + '\')">\uD83D\uDDFA\uFE0F Vis p\u00e5 kart</button>';
-    if (isCurated && t.route) {
+    let actionsHtml = '<button class="tour-btn" onclick="showToppturOnMap(' + t.id + ')">\uD83D\uDDFA\uFE0F Vis p\u00e5 kart</button>';
+    if (hasRoute) {
         actionsHtml += '<button class="tour-btn" onclick="planFromTopptur(' + t.id + ')">\u270E Planlegg rute</button>';
     }
 
@@ -1921,7 +1961,7 @@ function showToppturDetail(id, source) {
         '<div class="tt-detail-desc">' + descHtml + '</div>' +
         '<div class="tt-detail-actions">' + actionsHtml + '</div>';
 
-    showToppturOnMap(t.id, source);
+    showToppturOnMap(t.id);
 }
 
 function clearToppturRoute() {
@@ -1929,26 +1969,27 @@ function clearToppturRoute() {
     if (toppturSummitMarker) { map.removeLayer(toppturSummitMarker); toppturSummitMarker = null; }
 }
 
-function showToppturOnMap(id, source) {
-    source = source || 'curated';
-    const t = findTourById(id, source);
+function showToppturOnMap(id) {
+    const t = findTourById(id);
     if (!t) return;
     clearToppturRoute();
 
-    // Draw route if available
+    // Draw route if available (solid line for GPS routes, dashed for approximate)
     if (t.route && t.route.length >= 2) {
-        toppturRouteLayer = L.polyline(t.route, {
-            color: '#f39c12', weight: 3, opacity: 0.9, dashArray: '8,6'
-        }).addTo(map);
+        const routeStyle = t.source === 'kartverket'
+            ? { color: '#2ecc71', weight: 3, opacity: 0.9 }
+            : { color: '#f39c12', weight: 3, opacity: 0.9 };
+        toppturRouteLayer = L.polyline(t.route, routeStyle).addTo(map);
     }
 
-    // Summit marker
-    const markerColor = source === 'curated' ? 'rgba(243,156,18,0.95)' : 'rgba(155,89,182,0.95)';
-    const markerIcon = source === 'curated' ? '\u26F7' : '\u26F0';
+    // Summit/endpoint marker
+    const markerColor = t.route ? 'rgba(243,156,18,0.95)' : 'rgba(155,89,182,0.95)';
+    const markerIcon = t.route ? '\u26F7' : '\u26F0';
+    const altLabel = t.altitude ? ' ' + t.altitude + 'm' : '';
     toppturSummitMarker = L.marker([t.lat, t.lng], {
         icon: L.divIcon({
             className: '',
-            html: '<div style="background:' + markerColor + ';color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.3);">' + markerIcon + ' ' + t.name + ' ' + t.altitude + 'm</div>',
+            html: '<div style="background:' + markerColor + ';color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.3);">' + markerIcon + ' ' + t.name + altLabel + '</div>',
             iconSize: [0, 0], iconAnchor: [-5, 15]
         })
     }).addTo(map);
@@ -1962,7 +2003,7 @@ function showToppturOnMap(id, source) {
 }
 
 function planFromTopptur(id) {
-    const t = toppturer.find(x => x.id === id);
+    const t = findTourById(id);
     if (!t || !t.route) return;
     switchTourTab('planlegg');
     clearTourRoute();
@@ -1979,9 +2020,9 @@ function switchTourTab(tab) {
 
     if (tab === 'toppturer') {
         if (!selectedTopptur) renderToppturList();
-        // Trigger OSM fetch for current area
-        clearTimeout(osmFetchTimer);
-        osmFetchTimer = setTimeout(fetchOsmPeaks, 300);
+        // Trigger tour data fetch for current area
+        clearTimeout(tourFetchTimer);
+        tourFetchTimer = setTimeout(fetchTourData, 300);
     }
     if (tab === 'planlegg') {
         clearToppturRoute();
@@ -1996,16 +2037,16 @@ document.querySelectorAll('.tour-section-tab').forEach(tab => {
 map.on('moveend zoomend', function() {
     if (appMode === 'tour' && activeTourTab === 'toppturer' && !selectedTopptur) {
         renderToppturList();
-        // Debounced OSM fetch
-        clearTimeout(osmFetchTimer);
-        osmFetchTimer = setTimeout(fetchOsmPeaks, 800);
+        // Debounced API fetch
+        clearTimeout(tourFetchTimer);
+        tourFetchTimer = setTimeout(fetchTourData, 800);
     }
 });
 
 // Render list on initial load
 renderToppturList();
-// Initial OSM fetch
-setTimeout(fetchOsmPeaks, 1500);
+// Initial tour data fetch
+setTimeout(fetchTourData, 1500);
 
 // Tour buttons
 document.getElementById('btnDrawRoute').addEventListener('click', function() { tourDrawing=!tourDrawing; this.classList.toggle('active',tourDrawing); });
