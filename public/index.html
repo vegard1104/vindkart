@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>V&aelig;rkart &mdash; Sogn</title>
+    <title>V&aelig;r &amp; Turkart &mdash; Sogn</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <style>
@@ -13,13 +13,48 @@
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 450; pointer-events: none; }
         #overlayCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 440; pointer-events: none; }
 
+        /* Hamburger menu */
+        .hamburger {
+            position: absolute; top: 16px; left: 16px; z-index: 1002;
+            width: 44px; height: 44px; border-radius: 12px;
+            background: rgba(10,10,26,0.92); backdrop-filter: blur(16px);
+            border: 1px solid rgba(126,200,227,0.15); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #7ec8e3; font-size: 22px; transition: all 0.2s;
+        }
+        .hamburger:hover { background: rgba(126,200,227,0.12); }
+        .hamburger svg { width: 22px; height: 22px; }
+
+        .mode-menu {
+            position: absolute; top: 68px; left: 16px; z-index: 1002;
+            background: rgba(10,10,26,0.95); backdrop-filter: blur(16px);
+            border-radius: 12px; padding: 6px; width: 200px;
+            border: 1px solid rgba(126,200,227,0.15);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            display: none;
+        }
+        .mode-menu.open { display: block; }
+        .mode-menu-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+            border-radius: 8px; cursor: pointer; transition: all 0.15s;
+            border: none; background: none; color: #888; font-size: 13px;
+            width: 100%; text-align: left; font-family: inherit;
+        }
+        .mode-menu-item:hover { background: rgba(126,200,227,0.08); color: #ccc; }
+        .mode-menu-item.active { background: rgba(126,200,227,0.12); color: #7ec8e3; font-weight: 600; }
+        .mode-menu-item .mode-icon { font-size: 18px; width: 24px; text-align: center; }
+
+        /* Controls panel */
         .controls {
             position: absolute; top: 16px; right: 16px; z-index: 1000;
-            background: rgba(10, 10, 26, 0.88); backdrop-filter: blur(16px);
+            background: rgba(10,10,26,0.88); backdrop-filter: blur(16px);
             border-radius: 16px; padding: 0 0 20px 0; width: 320px;
             box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(126,200,227,0.12);
-            overflow: hidden;
+            overflow: hidden; max-height: calc(100vh - 40px); overflow-y: auto;
+            scrollbar-width: thin; scrollbar-color: #333 transparent;
         }
+        .controls::-webkit-scrollbar { width: 4px; }
+        .controls::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
         .controls-header { padding: 18px 22px 0 22px; }
         .controls-header h2 { font-size: 20px; font-weight: 700; color: #7ec8e3; margin-bottom: 2px; letter-spacing: -0.3px; }
         .controls-header .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; }
@@ -57,7 +92,6 @@
         .control-group { margin-bottom: 14px; }
         .control-group label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         .control-group .value { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-        .control-group .unit { font-size: 12px; color: #7ec8e3; font-weight: 400; }
 
         input[type="range"] {
             -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px;
@@ -71,12 +105,14 @@
 
         .info-box {
             background: rgba(126,200,227,0.06); border-radius: 12px; padding: 12px 14px;
-            border: 1px solid rgba(126,200,227,0.1);
+            border: 1px solid rgba(126,200,227,0.1); margin-bottom: 10px;
         }
         .info-box .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .info-box .row:last-child { margin-bottom: 0; }
         .info-box .label { color: #666; font-size: 12px; }
         .info-box .val { color: #fff; font-size: 12px; font-weight: 600; }
+        .info-box .section-title { color: #7ec8e3; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 8px; }
+        .info-box .section-title:first-child { margin-top: 0; }
 
         .beaufort-bar { margin-top: 10px; background: #151530; border-radius: 4px; height: 6px; overflow: hidden; }
         .beaufort-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease, background 0.4s ease; }
@@ -88,12 +124,12 @@
         }
         .speed-labels { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
 
-        .particle-toggle {
+        .particle-toggle, .layer-toggle {
             margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #888;
         }
         .toggle-switch {
             width: 36px; height: 20px; background: #222; border-radius: 10px; position: relative;
-            cursor: pointer; transition: background 0.3s;
+            cursor: pointer; transition: background 0.3s; flex-shrink: 0;
         }
         .toggle-switch.on { background: rgba(126,200,227,0.3); }
         .toggle-switch::after {
@@ -102,26 +138,65 @@
         }
         .toggle-switch.on::after { left: 18px; background: #7ec8e3; }
 
-        /* Temperature gradient legend */
-        .temp-gradient {
-            margin-top: 10px; height: 6px; border-radius: 3px;
-            background: linear-gradient(90deg, #3b48d9, #4a9ebe, #2ecc71, #f1c40f, #e67e22, #e74c3c);
-        }
+        .temp-gradient { margin-top: 10px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #3b48d9, #4a9ebe, #2ecc71, #f1c40f, #e67e22, #e74c3c); }
         .temp-labels { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
-
-        /* Precipitation gradient legend */
-        .precip-gradient {
-            margin-top: 10px; height: 6px; border-radius: 3px;
-            background: linear-gradient(90deg, #2c3e50, #3498db, #2980b9, #8e44ad);
-        }
+        .precip-gradient { margin-top: 10px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #2c3e50, #3498db, #2980b9, #8e44ad); }
         .precip-labels { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
 
-        /* Weather icon display */
-        .weather-icon-display {
-            text-align: center; margin: 10px 0;
-        }
+        .weather-icon-display { text-align: center; margin: 10px 0; }
         .weather-icon-display .icon { font-size: 48px; }
         .weather-icon-display .desc { font-size: 13px; color: #aaa; margin-top: 4px; }
+
+        /* Marker popup */
+        .marker-popup { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.5; min-width: 220px; }
+        .marker-popup h3 { color: #333; font-size: 14px; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        .marker-popup .mp-section { margin-top: 6px; font-size: 10px; color: #7ec8e3; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .marker-popup .mp-row { display: flex; justify-content: space-between; padding: 1px 0; }
+        .marker-popup .mp-label { color: #666; }
+        .marker-popup .mp-val { color: #222; font-weight: 600; }
+        .marker-popup .mp-remove { margin-top: 8px; padding: 4px 10px; background: #e74c3c; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+        /* Tour mode */
+        .tour-stats {
+            background: rgba(126,200,227,0.06); border-radius: 12px; padding: 12px 14px;
+            border: 1px solid rgba(126,200,227,0.1); margin-bottom: 10px;
+        }
+        .tour-stats .stat { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .tour-stats .stat:last-child { margin-bottom: 0; }
+        .tour-stats .stat-label { color: #666; font-size: 12px; }
+        .tour-stats .stat-val { color: #fff; font-size: 12px; font-weight: 600; }
+
+        .tour-btn {
+            padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 12px;
+            border: 1px solid rgba(126,200,227,0.2); background: rgba(126,200,227,0.08);
+            color: #7ec8e3; transition: all 0.2s; margin-right: 6px; margin-bottom: 6px;
+            display: inline-block; font-family: inherit;
+        }
+        .tour-btn:hover { background: rgba(126,200,227,0.15); }
+        .tour-btn.danger { border-color: rgba(231,76,60,0.3); color: #e74c3c; background: rgba(231,76,60,0.08); }
+        .tour-btn.danger:hover { background: rgba(231,76,60,0.15); }
+        .tour-btn.active { background: rgba(126,200,227,0.25); border-color: #7ec8e3; }
+
+        /* Elevation profile */
+        #elevationProfile {
+            width: 100%; height: 100px; border-radius: 8px; margin-top: 10px;
+            background: rgba(10,10,26,0.6); border: 1px solid rgba(126,200,227,0.1);
+        }
+
+        /* Avalanche warning box */
+        .avalanche-box {
+            border-radius: 10px; padding: 10px 12px; margin-top: 10px;
+            border: 1px solid rgba(126,200,227,0.1);
+        }
+        .avalanche-box .av-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .avalanche-box .av-icon { font-size: 20px; }
+        .avalanche-box .av-title { font-size: 12px; font-weight: 700; }
+        .avalanche-box .av-level { font-size: 11px; color: #aaa; }
+        .av-danger-1 { background: rgba(46,204,113,0.1); border-color: rgba(46,204,113,0.3); }
+        .av-danger-2 { background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3); }
+        .av-danger-3 { background: rgba(230,126,34,0.1); border-color: rgba(230,126,34,0.3); }
+        .av-danger-4 { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.3); }
+        .av-danger-5 { background: rgba(142,68,173,0.1); border-color: rgba(142,68,173,0.3); }
 
         .api-badge { display: inline-block; font-size: 9px; color: #444; padding: 2px 6px; border-radius: 3px; margin-top: 8px; }
 
@@ -160,7 +235,6 @@
         }
         .grid-status.loading { color: #7ec8e3; }
 
-        /* Mobile collapse toggle */
         .controls-toggle {
             display: none; position: absolute; top: 12px; right: 12px; z-index: 1001;
             width: 44px; height: 44px; border-radius: 12px;
@@ -170,17 +244,19 @@
         }
         .controls-toggle svg { width: 22px; height: 22px; }
 
+        /* Hint text */
+        .hint { font-size: 10px; color: #555; font-style: italic; margin-top: 6px; }
+
         @media (max-width: 600px) {
             .controls-toggle { display: flex; }
+            .hamburger { top: 12px; left: 12px; width: 40px; height: 40px; }
+            .mode-menu { top: 60px; left: 12px; }
             .controls {
                 width: calc(100% - 24px); right: 12px; left: 12px; top: 64px;
-                border-radius: 14px;
-                max-height: calc(100vh - 80px); overflow-y: auto;
+                border-radius: 14px; max-height: calc(100vh - 80px);
                 transition: transform 0.3s ease, opacity 0.3s ease;
             }
-            .controls.collapsed {
-                transform: translateY(-10px); opacity: 0; pointer-events: none; visibility: hidden;
-            }
+            .controls.collapsed { transform: translateY(-10px); opacity: 0; pointer-events: none; visibility: hidden; }
             .controls-header h2 { font-size: 17px; }
             .controls-header .subtitle { font-size: 10px; margin-bottom: 10px; }
             .layer-tab { font-size: 10px; padding: 8px 2px; }
@@ -194,18 +270,13 @@
             input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
             .info-box { padding: 10px 12px; }
             .info-box .label, .info-box .val { font-size: 12px; }
-            .legend {
-                bottom: 10px; left: 10px; padding: 7px 10px; font-size: 10px;
-                border-radius: 8px; max-width: 160px;
-            }
+            .legend { bottom: 10px; left: 10px; padding: 7px 10px; font-size: 10px; border-radius: 8px; max-width: 160px; }
             .legend-dot { width: 6px; height: 6px; }
             .legend-item { gap: 5px; margin-bottom: 2px; }
-            .particle-toggle { margin-top: 8px; }
             .speed-labels, .temp-labels, .precip-labels { font-size: 8px; }
             .api-badge { font-size: 8px; }
             .grid-status { bottom: 10px; right: 10px; font-size: 9px; }
         }
-
         @media (max-width: 380px) {
             .controls-header { padding: 14px 14px 0 14px; }
             .controls-body { padding: 0 14px; }
@@ -228,6 +299,24 @@
     <canvas id="overlayCanvas"></canvas>
     <canvas id="windCanvas"></canvas>
 
+    <!-- Hamburger menu -->
+    <button class="hamburger" id="hamburgerBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+    <div class="mode-menu" id="modeMenu">
+        <button class="mode-menu-item active" data-mode="weather">
+            <span class="mode-icon">&#9925;</span> V&aelig;r
+        </button>
+        <button class="mode-menu-item" data-mode="tour">
+            <span class="mode-icon">&#128694;</span> Tur
+        </button>
+    </div>
+
+    <!-- Mobile toggle -->
     <button class="controls-toggle" id="controlsToggle" aria-label="Vis/skjul kontroller">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
@@ -238,23 +327,20 @@
         </svg>
     </button>
 
-    <div class="controls">
+    <!-- ===== WEATHER MODE PANEL ===== -->
+    <div class="controls" id="weatherPanel">
         <div class="controls-header">
             <h2>V&aelig;rkart</h2>
             <div class="subtitle" id="locationSubtitle">Kartsentrum</div>
         </div>
-
-        <!-- Layer tabs -->
         <div class="layer-tabs">
             <button class="layer-tab active" data-tab="wind"><span class="tab-icon">&#127744;</span>Vind</button>
             <button class="layer-tab" data-tab="temp"><span class="tab-icon">&#127777;</span>Temp</button>
             <button class="layer-tab" data-tab="precip"><span class="tab-icon">&#127783;</span>Nedb&oslash;r</button>
             <button class="layer-tab" data-tab="weather"><span class="tab-icon">&#9728;</span>V&aelig;r</button>
         </div>
-
         <div class="controls-body">
             <div class="date-scroll" id="dateRow"></div>
-
             <div class="control-group">
                 <label>Klokkeslett</label>
                 <div class="value" id="timeDisplay">12:00</div>
@@ -268,26 +354,23 @@
                     <div class="value"><span id="densityDisplay">500</span></div>
                     <input type="range" id="densitySlider" min="100" max="2000" value="500" step="50">
                 </div>
-
                 <div class="info-box">
-                    <div class="row"><span class="label">Vindretning (senter)</span><span class="val" id="wDir">&mdash;</span></div>
-                    <div class="row"><span class="label">Vindhastighet (senter)</span><span class="val" id="wSpeed">&mdash;</span></div>
-                    <div class="row"><span class="label">Vindkast (senter)</span><span class="val" id="wGust">&mdash;</span></div>
+                    <div class="row"><span class="label">Vindretning</span><span class="val" id="wDir">&mdash;</span></div>
+                    <div class="row"><span class="label">Vindhastighet</span><span class="val" id="wSpeed">&mdash;</span></div>
+                    <div class="row"><span class="label">Vindkast</span><span class="val" id="wGust">&mdash;</span></div>
                     <div class="row"><span class="label">Vinden fra</span><span class="val" id="wFrom">&mdash;</span></div>
                     <div class="beaufort-bar"><div class="beaufort-fill" id="beaufortFill"></div></div>
                     <div class="beaufort-label" id="beaufortLabel"></div>
                 </div>
-
                 <div class="speed-gradient"></div>
                 <div class="speed-labels"><span>0</span><span>5</span><span>10</span><span>15</span><span>20+</span></div>
-
                 <div class="particle-toggle">
                     <div class="toggle-switch on" id="particleToggle"></div>
                     <span>Vindanimasjon</span>
                 </div>
             </div>
 
-            <!-- TEMPERATURE TAB -->
+            <!-- TEMP TAB -->
             <div class="tab-content" id="tab-temp">
                 <div class="info-box">
                     <div class="row"><span class="label">Temperatur (senter)</span><span class="val" id="tTemp">&mdash;</span></div>
@@ -297,7 +380,7 @@
                 <div class="temp-labels"><span>-20&deg;</span><span>-10&deg;</span><span>0&deg;</span><span>10&deg;</span><span>20&deg;</span><span>30&deg;+</span></div>
             </div>
 
-            <!-- PRECIPITATION TAB -->
+            <!-- PRECIP TAB -->
             <div class="tab-content" id="tab-precip">
                 <div class="info-box">
                     <div class="row"><span class="label">Nedb&oslash;r (senter)</span><span class="val" id="pAmount">&mdash;</span></div>
@@ -313,7 +396,7 @@
             <div class="tab-content" id="tab-weather">
                 <div class="weather-icon-display">
                     <div class="icon" id="wxIcon">&#9728;</div>
-                    <div class="desc" id="wxDesc">Klarvær</div>
+                    <div class="desc" id="wxDesc">Klarvr</div>
                 </div>
                 <div class="info-box">
                     <div class="row"><span class="label">V&aelig;rkode (WMO)</span><span class="val" id="wxCode">&mdash;</span></div>
@@ -323,19 +406,74 @@
                 </div>
             </div>
 
-            <div class="api-badge">Kilde: Open-Meteo (MET Norway)</div>
+            <div class="hint" id="markerHint">Klikk p&aring; kartet for &aring; se detaljert v&aelig;r for et punkt</div>
+            <div class="api-badge">Kilde: Open-Meteo &middot; Kartverket &middot; NVE/Varsom</div>
         </div>
     </div>
 
-    <!-- Wind legend (only visible on wind tab) -->
+    <!-- ===== TOUR MODE PANEL ===== -->
+    <div class="controls" id="tourPanel" style="display:none;">
+        <div class="controls-header">
+            <h2>Turkart</h2>
+            <div class="subtitle" id="tourSubtitle">Planlegg en rute</div>
+        </div>
+        <div class="controls-body">
+            <div style="margin-bottom: 12px;">
+                <button class="tour-btn active" id="btnDrawRoute">&#9998; Tegn rute</button>
+                <button class="tour-btn" id="btnUndoPoint">&#8617; Angre</button>
+                <button class="tour-btn danger" id="btnClearRoute">&#10006; Slett rute</button>
+            </div>
+
+            <div class="tour-stats" id="tourStats">
+                <div class="stat"><span class="stat-label">Distanse</span><span class="stat-val" id="tourDist">0 km</span></div>
+                <div class="stat"><span class="stat-label">Antall punkter</span><span class="stat-val" id="tourPoints">0</span></div>
+                <div class="stat"><span class="stat-label">H&oslash;yde min / maks</span><span class="stat-val" id="tourElev">&mdash;</span></div>
+                <div class="stat"><span class="stat-label">Total stigning</span><span class="stat-val" id="tourAscent">&mdash;</span></div>
+                <div class="stat"><span class="stat-label">Total nedstigning</span><span class="stat-val" id="tourDescent">&mdash;</span></div>
+            </div>
+
+            <canvas id="elevationProfile"></canvas>
+
+            <div style="margin-top: 14px;">
+                <div class="layer-toggle">
+                    <div class="toggle-switch" id="toggleSteepness"></div>
+                    <span>Bratthetskart (NVE)</span>
+                </div>
+                <div class="layer-toggle">
+                    <div class="toggle-switch" id="toggleAvalanche"></div>
+                    <span>Sn&oslash;skredaktsomhet (NVE)</span>
+                </div>
+            </div>
+
+            <div id="avalancheInfo" style="display:none;">
+                <div class="avalanche-box av-danger-2" id="avBox">
+                    <div class="av-header">
+                        <span class="av-icon" id="avIcon">&#9888;&#65039;</span>
+                        <div>
+                            <div class="av-title" id="avTitle">Sn&oslash;skredvarsel</div>
+                            <div class="av-level" id="avLevel">Laster...</div>
+                        </div>
+                    </div>
+                    <div class="info-box" style="margin: 0;">
+                        <div class="row"><span class="label">Faregrad</span><span class="val" id="avDanger">&mdash;</span></div>
+                        <div class="row"><span class="label">Region</span><span class="val" id="avRegion">&mdash;</span></div>
+                        <div class="row"><span class="label">Gyldig</span><span class="val" id="avDate">&mdash;</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hint">Klikk p&aring; kartet for &aring; legge til punkter p&aring; ruten</div>
+            <div class="api-badge">Kilde: Kartverket &middot; NVE/Varsom &middot; Open-Meteo</div>
+        </div>
+    </div>
+
+    <!-- Legends -->
     <div class="legend" id="legend-wind">
         <div class="legend-item"><div class="legend-dot" style="background:#4a9ebe;"></div> Svak vind (&lt;5 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> Lett bris (5&ndash;8 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#f1c40f;"></div> Frisk bris (8&ndash;14 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Kuling+ (&gt;14 m/s)</div>
     </div>
-
-    <!-- Temperature legend -->
     <div class="legend" id="legend-temp" style="display:none;">
         <div class="legend-item"><div class="legend-dot" style="background:#3b48d9;"></div> Under -10&deg;C</div>
         <div class="legend-item"><div class="legend-dot" style="background:#4a9ebe;"></div> -10 til 0&deg;C</div>
@@ -343,822 +481,848 @@
         <div class="legend-item"><div class="legend-dot" style="background:#f1c40f;"></div> 10 til 20&deg;C</div>
         <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Over 20&deg;C</div>
     </div>
-
-    <!-- Precipitation legend -->
     <div class="legend" id="legend-precip" style="display:none;">
         <div class="legend-item"><div class="legend-dot" style="background:#2c3e50;"></div> T&oslash;rt (0 mm)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#3498db;"></div> Lett (&lt;1 mm)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#2980b9;"></div> Moderat (1&ndash;5 mm)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#8e44ad;"></div> Kraftig (&gt;5 mm)</div>
     </div>
-
-    <!-- Weather legend -->
     <div class="legend" id="legend-weather" style="display:none;">
         <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div> Sol / Klart</div>
         <div class="legend-item"><div class="legend-dot" style="background:#95a5a6;"></div> Overskyet</div>
         <div class="legend-item"><div class="legend-dot" style="background:#3498db;"></div> Regn</div>
         <div class="legend-item"><div class="legend-dot" style="background:#ecf0f1;"></div> Sn&oslash;</div>
     </div>
+    <div class="legend" id="legend-steepness" style="display:none;">
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,0,0.7);"></div> 27&ndash;30&deg;</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(255,165,0,0.7);"></div> 30&ndash;35&deg;</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(255,0,0,0.7);"></div> 35&ndash;40&deg;</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(128,0,128,0.7);"></div> 40&ndash;45&deg;</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(0,0,0,0.7);"></div> &gt;45&deg;</div>
+    </div>
 
     <div class="grid-status" id="gridStatus">V&aelig;rrutenett: laster...</div>
 
-    <script>
-    // === CONFIG ===
-    const DEFAULT_LAT = 61.03219;
-    const DEFAULT_LNG = 7.30878;
-    const FORECAST_DAYS = 7;
-    const GRID_SIZE = 6; // 6x6 = 36 grid points
+<script>
+// =====================================================================
+// CONFIG
+// =====================================================================
+const DEFAULT_LAT = 61.03219;
+const DEFAULT_LNG = 7.30878;
+const FORECAST_DAYS = 7;
+const GRID_SIZE = 6;
 
-    // === STATE ===
-    let dates = [];
-    let selectedDate = '';
-    let currentHour = 12;
-    let particleCount = 500;
-    let animationEnabled = true;
-    let animFrameId = null;
-    let isLoadingGrid = false;
-    let fetchDebounceTimer = null;
-    let activeTab = 'wind'; // wind | temp | precip | weather
+// =====================================================================
+// STATE
+// =====================================================================
+let appMode = 'weather'; // 'weather' | 'tour'
+let dates = [];
+let selectedDate = '';
+let currentHour = 12;
+let particleCount = 500;
+let animationEnabled = true;
+let animFrameId = null;
+let isLoadingGrid = false;
+let fetchDebounceTimer = null;
+let activeTab = 'wind';
 
-    // Weather grid: stores all weather data for a grid of lat/lng points
-    // weatherGrid[date][hour] = { dirs, speeds, gusts, temps, feelslike, precip, precipProb, snowfall, weatherCode }
-    let weatherGrid = {};
-    let gridBounds = null;
-    let gridLats = [];
-    let gridLngs = [];
+// Weather grid data
+let weatherGrid = {};
+let gridBounds = null;
+let gridLats = [];
+let gridLngs = [];
 
-    // === MAP ===
-    const map = L.map('map', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 10);
-    L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
-        attribution: '&copy; <a href="https://kartverket.no">Kartverket</a> | V&aelig;r: Open-Meteo',
-        maxZoom: 18
-    }).addTo(map);
+// Marker system
+let weatherMarkers = [];
 
-    const centerMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
-        radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 0.9, weight: 2
-    }).addTo(map).bindPopup('<b>Senterpunkt</b><br>61&deg;01\'55.9"N 7&deg;18\'31.6"E');
+// Tour mode state
+let tourDrawing = true;
+let tourWaypoints = [];
+let tourPolyline = null;
+let tourElevations = [];
+let tourMarkers = [];
 
-    // === CANVASES ===
-    const windCanvas = document.getElementById('windCanvas');
-    const windCtx = windCanvas.getContext('2d');
-    const overlayCanvas = document.getElementById('overlayCanvas');
-    const overlayCtx = overlayCanvas.getContext('2d');
-    let particles = [];
+// NVE layers
+let steepnessLayer = null;
+let steepnessVisible = false;
+let avalancheLayer = null;
+let avalancheVisible = false;
 
-    function resizeCanvases() {
-        windCanvas.width = window.innerWidth;
-        windCanvas.height = window.innerHeight;
-        overlayCanvas.width = window.innerWidth;
-        overlayCanvas.height = window.innerHeight;
+// =====================================================================
+// MAP
+// =====================================================================
+const map = L.map('map', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 10);
+L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
+    attribution: '&copy; <a href="https://kartverket.no">Kartverket</a> | V&aelig;r: Open-Meteo | NVE/Varsom',
+    maxZoom: 18
+}).addTo(map);
+
+const centerMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
+    radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 0.9, weight: 2
+}).addTo(map).bindPopup('<b>Senterpunkt</b><br>61&deg;01\'55.9"N 7&deg;18\'31.6"E');
+
+// =====================================================================
+// CANVASES
+// =====================================================================
+const windCanvas = document.getElementById('windCanvas');
+const windCtx = windCanvas.getContext('2d');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const overlayCtx = overlayCanvas.getContext('2d');
+let particles = [];
+
+function resizeCanvases() {
+    windCanvas.width = window.innerWidth;
+    windCanvas.height = window.innerHeight;
+    overlayCanvas.width = window.innerWidth;
+    overlayCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
+
+// =====================================================================
+// GRID INTERPOLATION (all weather params)
+// =====================================================================
+function getDataAtLatLng(lat, lng, date, hour) {
+    const grid = weatherGrid[date];
+    if (!grid || !grid[hour]) return null;
+    const data = grid[hour];
+    const latStep = gridLats.length > 1 ? gridLats[1] - gridLats[0] : 1;
+    const lngStep = gridLngs.length > 1 ? gridLngs[1] - gridLngs[0] : 1;
+    const fi = (lat - gridLats[0]) / latStep;
+    const fj = (lng - gridLngs[0]) / lngStep;
+    const i0 = Math.max(0, Math.min(gridLats.length - 2, Math.floor(fi)));
+    const j0 = Math.max(0, Math.min(gridLngs.length - 2, Math.floor(fj)));
+    const i1 = i0 + 1, j1 = j0 + 1;
+    const ti = Math.max(0, Math.min(1, fi - i0));
+    const tj = Math.max(0, Math.min(1, fj - j0));
+
+    function bilerp(arr) {
+        return arr[i0][j0]*(1-ti)*(1-tj) + arr[i0][j1]*(1-ti)*tj + arr[i1][j0]*ti*(1-tj) + arr[i1][j1]*ti*tj;
     }
-    window.addEventListener('resize', resizeCanvases);
-    resizeCanvases();
+    // Wind direction vector interpolation
+    const toRad = d => d * Math.PI / 180;
+    const d00=data.dirs[i0][j0], d01=data.dirs[i0][j1], d10=data.dirs[i1][j0], d11=data.dirs[i1][j1];
+    const ix = Math.sin(toRad(d00))*(1-ti)*(1-tj)+Math.sin(toRad(d01))*(1-ti)*tj+Math.sin(toRad(d10))*ti*(1-tj)+Math.sin(toRad(d11))*ti*tj;
+    const iy = Math.cos(toRad(d00))*(1-ti)*(1-tj)+Math.cos(toRad(d01))*(1-ti)*tj+Math.cos(toRad(d10))*ti*(1-tj)+Math.cos(toRad(d11))*ti*tj;
+    let dir = Math.atan2(ix, iy) * 180 / Math.PI;
+    if (dir < 0) dir += 360;
+    const ni = ti < 0.5 ? i0 : i1, nj = tj < 0.5 ? j0 : j1;
 
-    // === GRID INTERPOLATION ===
-    function getDataAtLatLng(lat, lng, date, hour) {
-        const grid = weatherGrid[date];
-        if (!grid || !grid[hour]) return null;
-        const data = grid[hour];
+    return {
+        dir, speed: bilerp(data.speeds), gust: bilerp(data.gusts),
+        temp: bilerp(data.temps), feelslike: bilerp(data.feelslike),
+        precip: bilerp(data.precip), precipProb: bilerp(data.precipProb),
+        snowfall: bilerp(data.snowfall), weatherCode: data.weatherCode[ni][nj],
+        humidity: bilerp(data.humidity), cloudCover: bilerp(data.cloudCover),
+        visibility: bilerp(data.visibility), dewpoint: bilerp(data.dewpoint),
+        pressure: bilerp(data.pressure), uvIndex: bilerp(data.uvIndex),
+        snowDepth: bilerp(data.snowDepth)
+    };
+}
 
-        const latStep = gridLats.length > 1 ? gridLats[1] - gridLats[0] : 1;
-        const lngStep = gridLngs.length > 1 ? gridLngs[1] - gridLngs[0] : 1;
+function screenToLatLng(x, y) {
+    const p = map.containerPointToLatLng([x, y]);
+    return { lat: p.lat, lng: p.lng };
+}
 
-        const fi = (lat - gridLats[0]) / latStep;
-        const fj = (lng - gridLngs[0]) / lngStep;
+// =====================================================================
+// WMO WEATHER CODE HELPERS
+// =====================================================================
+function wmoToEmoji(c) {
+    if (c===0) return '\u2600\uFE0F';
+    if (c<=3) return '\u26C5';
+    if (c===45||c===48) return '\uD83C\uDF2B\uFE0F';
+    if (c>=51&&c<=55) return '\uD83C\uDF26\uFE0F';
+    if (c>=56&&c<=57) return '\u2744\uFE0F';
+    if (c>=61&&c<=65) return '\uD83C\uDF27\uFE0F';
+    if (c>=66&&c<=67) return '\u2744\uFE0F';
+    if (c>=71&&c<=77) return '\uD83C\uDF28\uFE0F';
+    if (c>=80&&c<=82) return '\uD83C\uDF26\uFE0F';
+    if (c>=85&&c<=86) return '\uD83C\uDF28\uFE0F';
+    if (c===95) return '\u26C8\uFE0F';
+    if (c>=96) return '\u26C8\uFE0F';
+    return '\u2601\uFE0F';
+}
+function wmoToDesc(c) {
+    if (c===0) return 'Klar himmel'; if (c===1) return 'Stort sett klart'; if (c===2) return 'Delvis skyet'; if (c===3) return 'Overskyet';
+    if (c===45) return 'T\u00e5ke'; if (c===48) return 'Rimfrost-t\u00e5ke';
+    if (c>=51&&c<=53) return 'Yr'; if (c>=54&&c<=55) return 'Kraftig yr';
+    if (c>=56&&c<=57) return 'Underkj\u00f8lt yr';
+    if (c===61) return 'Lett regn'; if (c===63) return 'Moderat regn'; if (c===65) return 'Kraftig regn';
+    if (c>=66&&c<=67) return 'Underkj\u00f8lt regn';
+    if (c===71) return 'Lett sn\u00f8fall'; if (c===73) return 'Moderat sn\u00f8fall'; if (c===75) return 'Kraftig sn\u00f8fall'; if (c===77) return 'Sn\u00f8korn';
+    if (c>=80&&c<=82) return 'Regnbyger'; if (c>=85&&c<=86) return 'Sn\u00f8byger';
+    if (c===95) return 'Tordenver'; if (c>=96) return 'Tordenver med hagl';
+    return 'Ukjent';
+}
 
-        const i0 = Math.max(0, Math.min(gridLats.length - 2, Math.floor(fi)));
-        const j0 = Math.max(0, Math.min(gridLngs.length - 2, Math.floor(fj)));
-        const i1 = i0 + 1;
-        const j1 = j0 + 1;
+// =====================================================================
+// COLOR HELPERS
+// =====================================================================
+function speedColor(s) { if(s<2) return 'rgb(74,158,190)'; if(s<5) return 'rgb(100,200,220)'; if(s<8) return 'rgb(46,204,113)'; if(s<11) return 'rgb(241,196,15)'; if(s<14) return 'rgb(230,126,34)'; if(s<18) return 'rgb(231,76,60)'; return 'rgb(142,68,173)'; }
+function windColorHex(s) { if(s<5) return '#4a9ebe'; if(s<8) return '#2ecc71'; if(s<14) return '#f1c40f'; if(s<20) return '#e74c3c'; return '#8e44ad'; }
+function tempColor(t) { if(t<-10) return 'rgb(59,72,217)'; if(t<-5) return 'rgb(70,120,200)'; if(t<0) return 'rgb(74,158,190)'; if(t<5) return 'rgb(60,180,170)'; if(t<10) return 'rgb(46,204,113)'; if(t<15) return 'rgb(180,210,50)'; if(t<20) return 'rgb(241,196,15)'; if(t<25) return 'rgb(230,126,34)'; if(t<30) return 'rgb(231,76,60)'; return 'rgb(180,40,40)'; }
+function precipColor(mm) { if(mm<0.1) return 'rgba(44,62,80,0.3)'; if(mm<1) return 'rgba(52,152,219,0.7)'; if(mm<5) return 'rgba(41,128,185,0.85)'; return 'rgba(142,68,173,0.95)'; }
+function weatherCodeColor(c) { if(c===0) return 'rgba(243,156,18,0.8)'; if(c<=3) return 'rgba(149,165,166,0.7)'; if(c===45||c===48) return 'rgba(189,195,199,0.6)'; if(c>=51&&c<=67) return 'rgba(52,152,219,0.8)'; if(c>=71&&c<=77) return 'rgba(236,240,241,0.8)'; if(c>=80&&c<=86) return 'rgba(52,152,219,0.8)'; if(c>=95) return 'rgba(155,89,182,0.9)'; return 'rgba(149,165,166,0.5)'; }
 
-        const ti = Math.max(0, Math.min(1, fi - i0));
-        const tj = Math.max(0, Math.min(1, fj - j0));
-
-        // Bilinear interpolation helper
-        function bilerp(arr) {
-            return arr[i0][j0]*(1-ti)*(1-tj) + arr[i0][j1]*(1-ti)*tj + arr[i1][j0]*ti*(1-tj) + arr[i1][j1]*ti*tj;
-        }
-
-        // Wind direction: vector interpolation
-        const toRad = d => d * Math.PI / 180;
-        const d00 = data.dirs[i0][j0], d01 = data.dirs[i0][j1];
-        const d10 = data.dirs[i1][j0], d11 = data.dirs[i1][j1];
-        const ix = Math.sin(toRad(d00))*(1-ti)*(1-tj) + Math.sin(toRad(d01))*(1-ti)*tj + Math.sin(toRad(d10))*ti*(1-tj) + Math.sin(toRad(d11))*ti*tj;
-        const iy = Math.cos(toRad(d00))*(1-ti)*(1-tj) + Math.cos(toRad(d01))*(1-ti)*tj + Math.cos(toRad(d10))*ti*(1-tj) + Math.cos(toRad(d11))*ti*tj;
-        let dir = Math.atan2(ix, iy) * 180 / Math.PI;
-        if (dir < 0) dir += 360;
-
-        // Weather code: nearest neighbor (not interpolatable)
-        const ni = ti < 0.5 ? i0 : i1;
-        const nj = tj < 0.5 ? j0 : j1;
-
-        return {
-            dir: dir,
-            speed: bilerp(data.speeds),
-            gust: bilerp(data.gusts),
-            temp: bilerp(data.temps),
-            feelslike: bilerp(data.feelslike),
-            precip: bilerp(data.precip),
-            precipProb: bilerp(data.precipProb),
-            snowfall: bilerp(data.snowfall),
-            weatherCode: data.weatherCode[ni][nj]
-        };
+// =====================================================================
+// PARTICLE SYSTEM
+// =====================================================================
+class WindParticle {
+    constructor() { this.reset(true); }
+    reset(randomAge = false) {
+        this.x = Math.random() * windCanvas.width; this.y = Math.random() * windCanvas.height;
+        this.maxAge = 60 + Math.random() * 80;
+        this.age = randomAge ? Math.random() * this.maxAge * 0.5 : 0;
+        this.history = []; this.lastSpeed = 0;
     }
-
-    function screenToLatLng(x, y) {
-        const point = map.containerPointToLatLng([x, y]);
-        return { lat: point.lat, lng: point.lng };
-    }
-
-    // === WMO WEATHER CODE HELPERS ===
-    function wmoToEmoji(code) {
-        if (code === 0) return '\u2600\uFE0F'; // Clear sky
-        if (code <= 3) return '\u26C5'; // Partly cloudy
-        if (code === 45 || code === 48) return '\uD83C\uDF2B\uFE0F'; // Fog
-        if (code >= 51 && code <= 55) return '\uD83C\uDF26\uFE0F'; // Drizzle
-        if (code >= 56 && code <= 57) return '\u2744\uFE0F\uD83C\uDF27\uFE0F'; // Freezing drizzle
-        if (code >= 61 && code <= 65) return '\uD83C\uDF27\uFE0F'; // Rain
-        if (code >= 66 && code <= 67) return '\u2744\uFE0F\uD83C\uDF27\uFE0F'; // Freezing rain
-        if (code >= 71 && code <= 77) return '\uD83C\uDF28\uFE0F'; // Snow
-        if (code >= 80 && code <= 82) return '\uD83C\uDF26\uFE0F'; // Rain showers
-        if (code >= 85 && code <= 86) return '\uD83C\uDF28\uFE0F'; // Snow showers
-        if (code === 95) return '\u26C8\uFE0F'; // Thunderstorm
-        if (code >= 96) return '\u26C8\uFE0F\uD83E\uDEA8'; // Thunderstorm + hail
-        return '\u2601\uFE0F';
-    }
-
-    function wmoToDesc(code) {
-        if (code === 0) return 'Klar himmel';
-        if (code === 1) return 'Stort sett klart';
-        if (code === 2) return 'Delvis skyet';
-        if (code === 3) return 'Overskyet';
-        if (code === 45) return 'T\u00e5ke';
-        if (code === 48) return 'Rimfrost-t\u00e5ke';
-        if (code >= 51 && code <= 53) return 'Yr';
-        if (code >= 55 && code <= 57) return 'Yr (kraftig)';
-        if (code >= 56 && code <= 57) return 'Underkj\u00f8lt yr';
-        if (code === 61) return 'Lett regn';
-        if (code === 63) return 'Moderat regn';
-        if (code === 65) return 'Kraftig regn';
-        if (code >= 66 && code <= 67) return 'Underkj\u00f8lt regn';
-        if (code === 71) return 'Lett sn\u00f8fall';
-        if (code === 73) return 'Moderat sn\u00f8fall';
-        if (code === 75) return 'Kraftig sn\u00f8fall';
-        if (code === 77) return 'Sn\u00f8korn';
-        if (code >= 80 && code <= 82) return 'Regnbyger';
-        if (code >= 85 && code <= 86) return 'Sn\u00f8byger';
-        if (code === 95) return 'Tordenv\u00e6r';
-        if (code >= 96) return 'Tordenv\u00e6r med hagl';
-        return 'Ukjent';
-    }
-
-    // === COLOR HELPERS ===
-    function speedColor(speed) {
-        if (speed < 2) return 'rgb(74, 158, 190)';
-        if (speed < 5) return 'rgb(100, 200, 220)';
-        if (speed < 8) return 'rgb(46, 204, 113)';
-        if (speed < 11) return 'rgb(241, 196, 15)';
-        if (speed < 14) return 'rgb(230, 126, 34)';
-        if (speed < 18) return 'rgb(231, 76, 60)';
-        return 'rgb(142, 68, 173)';
-    }
-
-    function windColorHex(speed) {
-        if (speed < 5) return '#4a9ebe';
-        if (speed < 8) return '#2ecc71';
-        if (speed < 14) return '#f1c40f';
-        if (speed < 20) return '#e74c3c';
-        return '#8e44ad';
-    }
-
-    function tempColor(temp) {
-        if (temp < -10) return 'rgb(59, 72, 217)';
-        if (temp < -5) return 'rgb(70, 120, 200)';
-        if (temp < 0) return 'rgb(74, 158, 190)';
-        if (temp < 5) return 'rgb(60, 180, 170)';
-        if (temp < 10) return 'rgb(46, 204, 113)';
-        if (temp < 15) return 'rgb(180, 210, 50)';
-        if (temp < 20) return 'rgb(241, 196, 15)';
-        if (temp < 25) return 'rgb(230, 126, 34)';
-        if (temp < 30) return 'rgb(231, 76, 60)';
-        return 'rgb(180, 40, 40)';
-    }
-
-    function precipColor(mm) {
-        if (mm < 0.1) return 'rgba(44, 62, 80, 0.3)';
-        if (mm < 1) return 'rgba(52, 152, 219, 0.7)';
-        if (mm < 5) return 'rgba(41, 128, 185, 0.85)';
-        return 'rgba(142, 68, 173, 0.95)';
-    }
-
-    function weatherCodeColor(code) {
-        if (code === 0) return 'rgba(243, 156, 18, 0.8)';
-        if (code <= 3) return 'rgba(149, 165, 166, 0.7)';
-        if (code === 45 || code === 48) return 'rgba(189, 195, 199, 0.6)';
-        if (code >= 51 && code <= 67) return 'rgba(52, 152, 219, 0.8)';
-        if (code >= 71 && code <= 77) return 'rgba(236, 240, 241, 0.8)';
-        if (code >= 80 && code <= 86) return 'rgba(52, 152, 219, 0.8)';
-        if (code >= 95) return 'rgba(155, 89, 182, 0.9)';
-        return 'rgba(149, 165, 166, 0.5)';
-    }
-
-    // === PARTICLE SYSTEM ===
-    class WindParticle {
-        constructor() { this.reset(true); }
-
-        reset(randomAge = false) {
-            this.x = Math.random() * windCanvas.width;
-            this.y = Math.random() * windCanvas.height;
-            this.maxAge = 60 + Math.random() * 80;
-            this.age = randomAge ? Math.random() * this.maxAge * 0.5 : 0;
-            this.history = [];
-            this.lastSpeed = 0;
-        }
-
-        update() {
-            if (this.age >= this.maxAge) { this.reset(); return; }
-            this.age++;
-
-            const pos = screenToLatLng(this.x, this.y);
-            const data = getDataAtLatLng(pos.lat, pos.lng, selectedDate, currentHour);
-            if (!data) return;
-
-            this.lastSpeed = data.speed;
-
-            const toRad = (data.dir + 180) % 360 * Math.PI / 180;
-            const speedFactor = Math.max(0.5, data.speed * 0.35);
-            const turbulence = (Math.random() - 0.5) * 0.8;
-
-            const vx = Math.sin(toRad) * speedFactor + turbulence;
-            const vy = -Math.cos(toRad) * speedFactor + turbulence;
-
-            this.history.push({ x: this.x, y: this.y });
-            if (this.history.length > 14) this.history.shift();
-
-            this.x += vx;
-            this.y += vy;
-
-            if (this.x < -10 || this.x > windCanvas.width + 10 ||
-                this.y < -10 || this.y > windCanvas.height + 10) {
-                this.reset();
-            }
-        }
-
-        draw(ctx) {
-            if (this.history.length < 2) return;
-            const lifeRatio = 1 - this.age / this.maxAge;
-            const baseAlpha = Math.min(1, lifeRatio * 1.2);
-            const color = speedColor(this.lastSpeed);
-            const totalPts = this.history.length;
-
-            for (let i = 1; i < totalPts; i++) {
-                const segAlpha = baseAlpha * (0.3 + 0.7 * (i / totalPts));
-                ctx.beginPath();
-                ctx.moveTo(this.history[i-1].x, this.history[i-1].y);
-                ctx.lineTo(this.history[i].x, this.history[i].y);
-                ctx.strokeStyle = color.replace(')', ',' + segAlpha + ')').replace('rgb', 'rgba');
-                ctx.lineWidth = 1 + (i / totalPts) * (1.5 + this.lastSpeed * 0.12);
-                ctx.lineCap = 'round';
-                ctx.stroke();
-            }
-            if (totalPts > 0) {
-                const last = this.history[totalPts - 1];
-                ctx.beginPath();
-                ctx.moveTo(last.x, last.y);
-                ctx.lineTo(this.x, this.y);
-                ctx.strokeStyle = color.replace(')', ',' + (baseAlpha * 0.9) + ')').replace('rgb', 'rgba');
-                ctx.lineWidth = 2 + this.lastSpeed * 0.12;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-            }
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, 2 + this.lastSpeed * 0.1, 0, Math.PI * 2);
-            ctx.fillStyle = color.replace(')', ',' + Math.min(1, baseAlpha * 1.1) + ')').replace('rgb', 'rgba');
-            ctx.fill();
-        }
-    }
-
-    function initParticles() {
-        particles = [];
-        for (let i = 0; i < particleCount; i++) {
-            particles.push(new WindParticle());
-        }
-    }
-
-    // === OVERLAY RENDERING ===
-    function drawOverlay() {
-        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-        if (activeTab === 'wind') return; // Wind uses particle system only
-        if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) return;
-
-        // Draw 4x4 grid of points (less dense than wind)
-        const overlayGridSize = 4;
-        const padX = overlayCanvas.width * 0.08;
-        const padY = overlayCanvas.height * 0.08;
-        const stepX = (overlayCanvas.width - 2 * padX) / (overlayGridSize - 1);
-        const stepY = (overlayCanvas.height - 2 * padY) / (overlayGridSize - 1);
-
-        for (let gy = 0; gy < overlayGridSize; gy++) {
-            for (let gx = 0; gx < overlayGridSize; gx++) {
-                const sx = padX + gx * stepX;
-                const sy = padY + gy * stepY;
-                const pos = screenToLatLng(sx, sy);
-                const data = getDataAtLatLng(pos.lat, pos.lng, selectedDate, currentHour);
-                if (!data) continue;
-
-                if (activeTab === 'temp') {
-                    drawTempPoint(overlayCtx, sx, sy, data.temp);
-                } else if (activeTab === 'precip') {
-                    drawPrecipPoint(overlayCtx, sx, sy, data.precip, data.snowfall);
-                } else if (activeTab === 'weather') {
-                    drawWeatherPoint(overlayCtx, sx, sy, data.weatherCode);
-                }
-            }
-        }
-    }
-
-    function drawTempPoint(ctx, x, y, temp) {
-        const color = tempColor(temp);
-        // Outer glow
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 32);
-        gradient.addColorStop(0, color.replace('rgb', 'rgba').replace(')', ', 0.35)'));
-        gradient.addColorStop(1, color.replace('rgb', 'rgba').replace(')', ', 0)'));
-        ctx.beginPath();
-        ctx.arc(x, y, 32, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Inner circle
-        ctx.beginPath();
-        ctx.arc(x, y, 14, 0, Math.PI * 2);
-        ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.85)');
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Temperature text
-        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(Math.round(temp) + '\u00b0', x, y);
-    }
-
-    function drawPrecipPoint(ctx, x, y, precip, snowfall) {
-        const color = precipColor(precip);
-        const isSnow = snowfall > 0.1;
-        const radius = Math.min(26, 8 + precip * 3);
-
-        // Outer glow
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius + 16);
-        gradient.addColorStop(0, color);
-        gradient.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.beginPath();
-        ctx.arc(x, y, radius + 16, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Inner circle
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
-        ctx.strokeStyle = isSnow ? 'rgba(255,255,255,0.5)' : 'rgba(100,180,255,0.3)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Text
-        ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        if (precip < 0.1) {
-            ctx.fillText('-', x, y);
-        } else {
-            ctx.fillText(precip.toFixed(1), x, y - 4);
-            ctx.font = '8px -apple-system, sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.fillText(isSnow ? 'mm sn\u00f8' : 'mm', x, y + 7);
-        }
-    }
-
-    function drawWeatherPoint(ctx, x, y, code) {
-        const color = weatherCodeColor(code);
-        const emoji = wmoToEmoji(code);
-
-        // Background circle
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 30);
-        gradient.addColorStop(0, color);
-        gradient.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.beginPath();
-        ctx.arc(x, y, 30, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Emoji icon
-        ctx.font = '24px serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(emoji, x, y);
-    }
-
-    // === ANIMATION LOOP ===
-    function animate() {
-        if (activeTab !== 'wind' || !animationEnabled) {
-            windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
-            if (activeTab === 'wind' && !animationEnabled) return;
-            if (activeTab !== 'wind') {
-                animFrameId = requestAnimationFrame(animate);
-                return;
-            }
-            return;
-        }
-
-        if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) {
-            animFrameId = requestAnimationFrame(animate);
-            return;
-        }
-
-        windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
-
-        while (particles.length < particleCount) particles.push(new WindParticle());
-        while (particles.length > particleCount) particles.pop();
-
-        for (const p of particles) {
-            p.update();
-            p.draw(windCtx);
-        }
-
-        animFrameId = requestAnimationFrame(animate);
-    }
-
-    // === GRID API ===
-    function getMapGridBounds() {
-        const bounds = map.getBounds();
-        const pad = 0.15;
-        const latRange = bounds.getNorth() - bounds.getSouth();
-        const lngRange = bounds.getEast() - bounds.getWest();
-        return {
-            south: bounds.getSouth() - latRange * pad,
-            north: bounds.getNorth() + latRange * pad,
-            west: bounds.getWest() - lngRange * pad,
-            east: bounds.getEast() + lngRange * pad
-        };
-    }
-
-    async function fetchWeatherGrid() {
-        if (isLoadingGrid) return;
-        isLoadingGrid = true;
-
-        const statusEl = document.getElementById('gridStatus');
-        statusEl.textContent = 'Henter v\u00e6rrutenett...';
-        statusEl.classList.add('loading');
-
-        const b = getMapGridBounds();
-        gridBounds = b;
-
-        const lats = [];
-        const lngs = [];
-        for (let i = 0; i < GRID_SIZE; i++) {
-            lats.push(b.south + (b.north - b.south) * i / (GRID_SIZE - 1));
-            lngs.push(b.west + (b.east - b.west) * i / (GRID_SIZE - 1));
-        }
-        gridLats = lats;
-        gridLngs = lngs;
-
-        const flatLats = [];
-        const flatLngs = [];
-        for (let i = 0; i < GRID_SIZE; i++) {
-            for (let j = 0; j < GRID_SIZE; j++) {
-                flatLats.push(lats[i].toFixed(4));
-                flatLngs.push(lngs[j].toFixed(4));
-            }
-        }
-
-        const latStr = flatLats.join(',');
-        const lngStr = flatLngs.join(',');
-
-        const url = 'https://api.open-meteo.com/v1/forecast?' +
-            'latitude=' + latStr +
-            '&longitude=' + lngStr +
-            '&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,apparent_temperature,precipitation,precipitation_probability,snowfall,weather_code' +
-            '&forecast_days=' + FORECAST_DAYS +
-            '&timezone=Europe%2FOslo&wind_speed_unit=ms';
-
-        try {
-            const res = await fetch(url);
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const json = await res.json();
-
-            const results = Array.isArray(json) ? json : [json];
-            const newGrid = {};
-
-            const times = results[0].hourly.time;
-            const newDates = [];
-            for (let t = 0; t < times.length; t++) {
-                const dt = times[t].substring(0, 10);
-                if (!newDates.includes(dt)) newDates.push(dt);
-            }
-
-            for (const dt of newDates) {
-                newGrid[dt] = {};
-                for (let h = 0; h < 24; h++) {
-                    newGrid[dt][h] = {
-                        dirs: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        speeds: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        gusts: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        temps: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        feelslike: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        precip: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        precipProb: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        snowfall: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        weatherCode: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0))
-                    };
-                }
-            }
-
-            for (let idx = 0; idx < results.length; idx++) {
-                const i = Math.floor(idx / GRID_SIZE);
-                const j = idx % GRID_SIZE;
-                const h = results[idx].hourly;
-
-                for (let t = 0; t < h.time.length; t++) {
-                    const dt = h.time[t].substring(0, 10);
-                    const hour = parseInt(h.time[t].substring(11, 13));
-                    if (newGrid[dt] && newGrid[dt][hour]) {
-                        const cell = newGrid[dt][hour];
-                        cell.dirs[i][j] = h.wind_direction_10m[t] || 0;
-                        cell.speeds[i][j] = h.wind_speed_10m[t] || 0;
-                        cell.gusts[i][j] = h.wind_gusts_10m[t] || 0;
-                        cell.temps[i][j] = h.temperature_2m[t] !== undefined ? h.temperature_2m[t] : 0;
-                        cell.feelslike[i][j] = h.apparent_temperature[t] !== undefined ? h.apparent_temperature[t] : 0;
-                        cell.precip[i][j] = h.precipitation[t] || 0;
-                        cell.precipProb[i][j] = h.precipitation_probability[t] || 0;
-                        cell.snowfall[i][j] = h.snowfall[t] || 0;
-                        cell.weatherCode[i][j] = h.weather_code[t] || 0;
-                    }
-                }
-            }
-
-            weatherGrid = newGrid;
-
-            if (dates.length === 0) {
-                dates = newDates.sort();
-                selectedDate = dates.length > 1 ? dates[1] : dates[0];
-                buildDateButtons();
-            }
-
-            updateDisplay();
-            drawOverlay();
-
-            const pointCount = GRID_SIZE * GRID_SIZE;
-            statusEl.textContent = 'V\u00e6rrutenett: ' + pointCount + ' punkter';
-            statusEl.classList.remove('loading');
-
-        } catch (e) {
-            statusEl.textContent = 'Feil: ' + e.message;
-            statusEl.classList.remove('loading');
-        }
-
-        isLoadingGrid = false;
-    }
-
-    // Clear canvases on map move
-    map.on('movestart zoomstart', () => {
-        windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
-        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-        particles.forEach(p => p.history = []);
-    });
-
-    // Refetch grid when map stops moving
-    map.on('moveend zoomend', () => {
-        clearTimeout(fetchDebounceTimer);
-        fetchDebounceTimer = setTimeout(() => {
-            fetchWeatherGrid();
-            updateLocationSubtitle();
-        }, 600);
-    });
-
-    function updateLocationSubtitle() {
-        const center = map.getCenter();
-        document.getElementById('locationSubtitle').textContent =
-            center.lat.toFixed(3) + '\u00b0N, ' + center.lng.toFixed(3) + '\u00b0E';
-    }
-
-    // === INITIAL LOAD ===
-    async function loadData() {
-        const loading = document.getElementById('loading');
-        const spinner = document.getElementById('spinner');
-        const errorText = document.getElementById('errorText');
-        const retryBtn = document.getElementById('retryBtn');
-        const loadingText = document.getElementById('loadingText');
-
-        loading.style.display = 'flex';
-        spinner.style.display = 'block';
-        errorText.style.display = 'none';
-        retryBtn.style.display = 'none';
-        loadingText.textContent = 'Henter v\u00e6rdata (' + (GRID_SIZE*GRID_SIZE) + ' punkter)...';
-
-        try {
-            await fetchWeatherGrid();
-            loading.style.display = 'none';
-            updateLocationSubtitle();
-            updateDisplay();
-            drawOverlay();
-            initParticles();
-            animate();
-            autoCollapseOnMobile();
-        } catch (e) {
-            spinner.style.display = 'none';
-            loadingText.textContent = 'Kunne ikke hente v\u00e6rdata';
-            errorText.style.display = 'block';
-            errorText.textContent = e.message;
-            retryBtn.style.display = 'inline-block';
-        }
-    }
-
-    // === DATE BUTTONS ===
-    function formatDateShort(dateStr) {
-        const days = ['s\u00f8n','man','tir','ons','tor','fre','l\u00f8r'];
-        const d = new Date(dateStr + 'T12:00:00');
-        return days[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
-    }
-
-    function buildDateButtons() {
-        const row = document.getElementById('dateRow');
-        row.innerHTML = '';
-        dates.forEach(function(date) {
-            const btn = document.createElement('button');
-            btn.className = 'date-btn' + (date === selectedDate ? ' active' : '');
-            btn.textContent = formatDateShort(date);
-            btn.onclick = function() {
-                selectedDate = date;
-                document.querySelectorAll('.date-btn').forEach(function(b) { b.classList.remove('active'); });
-                btn.classList.add('active');
-                updateDisplay();
-                drawOverlay();
-                particles.forEach(function(p) { p.history = []; p.age = 0; });
-                windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
-            };
-            row.appendChild(btn);
-        });
-    }
-
-    // === HELPERS ===
-    function directionName(deg) {
-        var dirs = ['N','NN\u00d8','N\u00d8','\u00d8N\u00d8','\u00d8','\u00d8S\u00d8','S\u00d8','SS\u00d8','S','SSV','SV','VSV','V','VNV','NV','NNV'];
-        return dirs[Math.round(deg / 22.5) % 16];
-    }
-
-    function beaufortScale(ms) {
-        if (ms < 0.3) return { level: 0, name: 'Stille' };
-        if (ms < 1.6) return { level: 1, name: 'Flau vind' };
-        if (ms < 3.4) return { level: 2, name: 'Svak vind' };
-        if (ms < 5.5) return { level: 3, name: 'Lett bris' };
-        if (ms < 8.0) return { level: 4, name: 'Laber bris' };
-        if (ms < 10.8) return { level: 5, name: 'Frisk bris' };
-        if (ms < 13.9) return { level: 6, name: 'Liten kuling' };
-        if (ms < 17.2) return { level: 7, name: 'Stiv kuling' };
-        if (ms < 20.8) return { level: 8, name: 'Sterk kuling' };
-        if (ms < 24.5) return { level: 9, name: 'Liten storm' };
-        if (ms < 28.5) return { level: 10, name: 'Full storm' };
-        if (ms < 32.7) return { level: 11, name: 'Sterk storm' };
-        return { level: 12, name: 'Orkan' };
-    }
-
-    // === DISPLAY ===
-    function updateDisplay() {
-        const center = map.getCenter();
-        const data = getDataAtLatLng(center.lat, center.lng, selectedDate, currentHour);
+    update() {
+        if (this.age >= this.maxAge) { this.reset(); return; }
+        this.age++;
+        const pos = screenToLatLng(this.x, this.y);
+        const data = getDataAtLatLng(pos.lat, pos.lng, selectedDate, currentHour);
         if (!data) return;
-
-        document.getElementById('timeDisplay').textContent = String(currentHour).padStart(2,'0') + ':00';
-
-        // Wind info
-        var bf = beaufortScale(data.speed);
-        document.getElementById('wDir').textContent = Math.round(data.dir) + '\u00b0';
-        document.getElementById('wSpeed').textContent = data.speed.toFixed(1) + ' m/s';
-        document.getElementById('wGust').textContent = data.gust.toFixed(1) + ' m/s';
-        document.getElementById('wFrom').textContent = directionName(data.dir);
-        var pct = Math.min(100, (bf.level / 12) * 100);
-        var fill = document.getElementById('beaufortFill');
-        fill.style.width = pct + '%';
-        fill.style.background = windColorHex(data.speed);
-        document.getElementById('beaufortLabel').textContent = 'Beaufort ' + bf.level + ' \u2014 ' + bf.name;
-
-        // Temperature info
-        document.getElementById('tTemp').textContent = data.temp.toFixed(1) + '\u00b0C';
-        document.getElementById('tFeels').textContent = data.feelslike.toFixed(1) + '\u00b0C';
-
-        // Precipitation info
-        document.getElementById('pAmount').textContent = data.precip.toFixed(1) + ' mm';
-        document.getElementById('pProb').textContent = Math.round(data.precipProb) + '%';
-        document.getElementById('pSnow').textContent = data.snowfall.toFixed(1) + ' cm';
-        document.getElementById('pType').textContent = data.snowfall > 0.1 ? 'Sn\u00f8' : (data.precip > 0.1 ? 'Regn' : 'Ingen');
-
-        // Weather info
-        document.getElementById('wxIcon').textContent = wmoToEmoji(data.weatherCode);
-        document.getElementById('wxDesc').textContent = wmoToDesc(data.weatherCode);
-        document.getElementById('wxCode').textContent = data.weatherCode;
-        document.getElementById('wxTemp').textContent = data.temp.toFixed(1) + '\u00b0C';
-        document.getElementById('wxWind').textContent = data.speed.toFixed(1) + ' m/s ' + directionName(data.dir);
-        document.getElementById('wxPrecip').textContent = data.precip.toFixed(1) + ' mm';
+        this.lastSpeed = data.speed;
+        const toRad = (data.dir + 180) % 360 * Math.PI / 180;
+        const sf = Math.max(0.5, data.speed * 0.35);
+        const turb = (Math.random() - 0.5) * 0.8;
+        this.history.push({ x: this.x, y: this.y });
+        if (this.history.length > 14) this.history.shift();
+        this.x += Math.sin(toRad) * sf + turb;
+        this.y += -Math.cos(toRad) * sf + turb;
+        if (this.x<-10||this.x>windCanvas.width+10||this.y<-10||this.y>windCanvas.height+10) this.reset();
     }
+    draw(ctx) {
+        if (this.history.length < 2) return;
+        const lr = 1 - this.age/this.maxAge, ba = Math.min(1, lr*1.2);
+        const color = speedColor(this.lastSpeed), tp = this.history.length;
+        for (let i=1;i<tp;i++) {
+            const sa = ba*(0.3+0.7*(i/tp));
+            ctx.beginPath(); ctx.moveTo(this.history[i-1].x,this.history[i-1].y); ctx.lineTo(this.history[i].x,this.history[i].y);
+            ctx.strokeStyle = color.replace(')',',' + sa + ')').replace('rgb','rgba');
+            ctx.lineWidth = 1+(i/tp)*(1.5+this.lastSpeed*0.12); ctx.lineCap='round'; ctx.stroke();
+        }
+        if(tp>0){const l=this.history[tp-1]; ctx.beginPath(); ctx.moveTo(l.x,l.y); ctx.lineTo(this.x,this.y);
+            ctx.strokeStyle=color.replace(')',',' + (ba*0.9) + ')').replace('rgb','rgba'); ctx.lineWidth=2+this.lastSpeed*0.12; ctx.lineCap='round'; ctx.stroke();}
+        ctx.beginPath(); ctx.arc(this.x,this.y,2+this.lastSpeed*0.1,0,Math.PI*2);
+        ctx.fillStyle=color.replace(')',',' + Math.min(1,ba*1.1) + ')').replace('rgb','rgba'); ctx.fill();
+    }
+}
 
-    // === TAB SWITCHING ===
-    function switchTab(tab) {
-        activeTab = tab;
+function initParticles() { particles = []; for (let i=0; i<particleCount; i++) particles.push(new WindParticle()); }
 
-        // Update tab buttons
-        document.querySelectorAll('.layer-tab').forEach(t => t.classList.remove('active'));
-        document.querySelector('.layer-tab[data-tab="' + tab + '"]').classList.add('active');
+// =====================================================================
+// OVERLAY RENDERING (temp/precip/weather)
+// =====================================================================
+function drawOverlay() {
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    if (appMode !== 'weather' || activeTab === 'wind') return;
+    if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) return;
+    const gs = 4, px = overlayCanvas.width*0.08, py = overlayCanvas.height*0.08;
+    const sx = (overlayCanvas.width-2*px)/(gs-1), sy = (overlayCanvas.height-2*py)/(gs-1);
+    for (let gy=0; gy<gs; gy++) for (let gx=0; gx<gs; gx++) {
+        const x=px+gx*sx, y=py+gy*sy;
+        const pos = screenToLatLng(x, y);
+        const d = getDataAtLatLng(pos.lat, pos.lng, selectedDate, currentHour);
+        if (!d) continue;
+        if (activeTab==='temp') drawTempPoint(overlayCtx,x,y,d.temp);
+        else if (activeTab==='precip') drawPrecipPoint(overlayCtx,x,y,d.precip,d.snowfall);
+        else if (activeTab==='weather') drawWeatherPoint(overlayCtx,x,y,d.weatherCode);
+    }
+}
 
-        // Update tab content panels
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.getElementById('tab-' + tab).classList.add('active');
+function drawTempPoint(ctx,x,y,temp) {
+    const c=tempColor(temp);
+    const g=ctx.createRadialGradient(x,y,0,x,y,32); g.addColorStop(0,c.replace('rgb','rgba').replace(')',',.35)')); g.addColorStop(1,c.replace('rgb','rgba').replace(')',',.0)'));
+    ctx.beginPath(); ctx.arc(x,y,32,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,14,0,Math.PI*2); ctx.fillStyle=c.replace('rgb','rgba').replace(')',',.85)'); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.font='bold 11px -apple-system,sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(Math.round(temp)+'\u00b0',x,y);
+}
+function drawPrecipPoint(ctx,x,y,precip,snow) {
+    const c=precipColor(precip), isSnow=snow>0.1, r=Math.min(26,8+precip*3);
+    const g=ctx.createRadialGradient(x,y,0,x,y,r+16); g.addColorStop(0,c); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.arc(x,y,r+16,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=c; ctx.fill();
+    ctx.strokeStyle=isSnow?'rgba(255,255,255,.5)':'rgba(100,180,255,.3)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.font='bold 10px -apple-system,sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    if(precip<0.1) ctx.fillText('-',x,y);
+    else { ctx.fillText(precip.toFixed(1),x,y-4); ctx.font='8px sans-serif'; ctx.fillStyle='rgba(255,255,255,.7)'; ctx.fillText(isSnow?'mm sn\u00f8':'mm',x,y+7); }
+}
+function drawWeatherPoint(ctx,x,y,code) {
+    const c=weatherCodeColor(code);
+    const g=ctx.createRadialGradient(x,y,0,x,y,30); g.addColorStop(0,c); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.arc(x,y,30,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    ctx.font='24px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(wmoToEmoji(code),x,y);
+}
 
-        // Update legends
-        document.getElementById('legend-wind').style.display = tab === 'wind' ? '' : 'none';
-        document.getElementById('legend-temp').style.display = tab === 'temp' ? '' : 'none';
-        document.getElementById('legend-precip').style.display = tab === 'precip' ? '' : 'none';
-        document.getElementById('legend-weather').style.display = tab === 'weather' ? '' : 'none';
+// =====================================================================
+// ANIMATION LOOP
+// =====================================================================
+function animate() {
+    if (appMode !== 'weather' || activeTab !== 'wind' || !animationEnabled) {
+        windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);
+        if (appMode==='weather' && activeTab==='wind' && !animationEnabled) return;
+        if (appMode!=='weather' || activeTab!=='wind') { animFrameId=requestAnimationFrame(animate); return; }
+        return;
+    }
+    if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) { animFrameId=requestAnimationFrame(animate); return; }
+    windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);
+    while (particles.length<particleCount) particles.push(new WindParticle());
+    while (particles.length>particleCount) particles.pop();
+    for (const p of particles) { p.update(); p.draw(windCtx); }
+    animFrameId = requestAnimationFrame(animate);
+}
 
-        // Handle wind canvas
-        if (tab === 'wind') {
-            windCanvas.style.display = '';
-            if (animationEnabled) {
-                initParticles();
-                if (animFrameId) cancelAnimationFrame(animFrameId);
-                animate();
+// =====================================================================
+// API FETCH
+// =====================================================================
+function getMapGridBounds() {
+    const b=map.getBounds(), pad=0.15;
+    const latR=b.getNorth()-b.getSouth(), lngR=b.getEast()-b.getWest();
+    return { south:b.getSouth()-latR*pad, north:b.getNorth()+latR*pad, west:b.getWest()-lngR*pad, east:b.getEast()+lngR*pad };
+}
+
+async function fetchWeatherGrid() {
+    if (isLoadingGrid) return;
+    isLoadingGrid = true;
+    const statusEl = document.getElementById('gridStatus');
+    statusEl.textContent = 'Henter v\u00e6rrutenett...'; statusEl.classList.add('loading');
+
+    const b = getMapGridBounds(); gridBounds = b;
+    const lats=[], lngs=[];
+    for (let i=0;i<GRID_SIZE;i++) { lats.push(b.south+(b.north-b.south)*i/(GRID_SIZE-1)); lngs.push(b.west+(b.east-b.west)*i/(GRID_SIZE-1)); }
+    gridLats=lats; gridLngs=lngs;
+
+    const flatLats=[], flatLngs=[];
+    for (let i=0;i<GRID_SIZE;i++) for (let j=0;j<GRID_SIZE;j++) { flatLats.push(lats[i].toFixed(4)); flatLngs.push(lngs[j].toFixed(4)); }
+
+    const url = 'https://api.open-meteo.com/v1/forecast?' +
+        'latitude=' + flatLats.join(',') + '&longitude=' + flatLngs.join(',') +
+        '&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,apparent_temperature,precipitation,precipitation_probability,snowfall,weather_code,relative_humidity_2m,cloud_cover,visibility,dew_point_2m,surface_pressure,uv_index,snow_depth' +
+        '&forecast_days=' + FORECAST_DAYS + '&timezone=Europe%2FOslo&wind_speed_unit=ms';
+
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const json = await res.json();
+        const results = Array.isArray(json) ? json : [json];
+        const newGrid = {};
+        const times = results[0].hourly.time;
+        const newDates = [];
+        for (let t=0; t<times.length; t++) { const dt=times[t].substring(0,10); if(!newDates.includes(dt)) newDates.push(dt); }
+
+        for (const dt of newDates) { newGrid[dt]={}; for (let h=0;h<24;h++) {
+            newGrid[dt][h] = {
+                dirs: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                speeds: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                gusts: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                temps: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                feelslike: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                precip: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                precipProb: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                snowfall: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                weatherCode: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                humidity: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                cloudCover: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                visibility: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                dewpoint: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                pressure: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                uvIndex: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0)),
+                snowDepth: Array.from({length:GRID_SIZE},()=>new Array(GRID_SIZE).fill(0))
+            };
+        }}
+
+        for (let idx=0; idx<results.length; idx++) {
+            const i=Math.floor(idx/GRID_SIZE), j=idx%GRID_SIZE, h=results[idx].hourly;
+            for (let t=0;t<h.time.length;t++) {
+                const dt=h.time[t].substring(0,10), hour=parseInt(h.time[t].substring(11,13));
+                if (newGrid[dt]&&newGrid[dt][hour]) {
+                    const c=newGrid[dt][hour];
+                    c.dirs[i][j]=h.wind_direction_10m[t]||0; c.speeds[i][j]=h.wind_speed_10m[t]||0; c.gusts[i][j]=h.wind_gusts_10m[t]||0;
+                    c.temps[i][j]=h.temperature_2m[t]!==undefined?h.temperature_2m[t]:0;
+                    c.feelslike[i][j]=h.apparent_temperature[t]!==undefined?h.apparent_temperature[t]:0;
+                    c.precip[i][j]=h.precipitation[t]||0; c.precipProb[i][j]=h.precipitation_probability[t]||0;
+                    c.snowfall[i][j]=h.snowfall[t]||0; c.weatherCode[i][j]=h.weather_code[t]||0;
+                    c.humidity[i][j]=h.relative_humidity_2m[t]||0; c.cloudCover[i][j]=h.cloud_cover[t]||0;
+                    c.visibility[i][j]=h.visibility[t]||0; c.dewpoint[i][j]=h.dew_point_2m[t]||0;
+                    c.pressure[i][j]=h.surface_pressure[t]||0; c.uvIndex[i][j]=h.uv_index[t]||0;
+                    c.snowDepth[i][j]=h.snow_depth[t]||0;
+                }
             }
-        } else {
-            windCanvas.style.display = 'none';
-            windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
         }
+        weatherGrid = newGrid;
+        if (dates.length===0) { dates=newDates.sort(); selectedDate=dates.length>1?dates[1]:dates[0]; buildDateButtons(); }
+        updateDisplay(); drawOverlay();
+        statusEl.textContent = 'V\u00e6rrutenett: ' + (GRID_SIZE*GRID_SIZE) + ' punkter'; statusEl.classList.remove('loading');
+    } catch (e) { statusEl.textContent = 'Feil: ' + e.message; statusEl.classList.remove('loading'); }
+    isLoadingGrid = false;
+}
 
-        // Draw overlay for non-wind tabs
+// =====================================================================
+// MARKER SYSTEM — click to get detailed weather
+// =====================================================================
+function createWeatherMarkerPopup(lat, lng, data, markerId) {
+    return '<div class="marker-popup">' +
+        '<h3>' + lat.toFixed(4) + '\u00b0N, ' + lng.toFixed(4) + '\u00b0E</h3>' +
+        '<div class="mp-section">Vind</div>' +
+        '<div class="mp-row"><span class="mp-label">Retning</span><span class="mp-val">' + Math.round(data.dir) + '\u00b0 (' + directionName(data.dir) + ')</span></div>' +
+        '<div class="mp-row"><span class="mp-label">Hastighet</span><span class="mp-val">' + data.speed.toFixed(1) + ' m/s</span></div>' +
+        '<div class="mp-row"><span class="mp-label">Kast</span><span class="mp-val">' + data.gust.toFixed(1) + ' m/s</span></div>' +
+        '<div class="mp-section">Temperatur</div>' +
+        '<div class="mp-row"><span class="mp-label">Temperatur</span><span class="mp-val">' + data.temp.toFixed(1) + '\u00b0C</span></div>' +
+        '<div class="mp-row"><span class="mp-label">F\u00f8les som</span><span class="mp-val">' + data.feelslike.toFixed(1) + '\u00b0C</span></div>' +
+        '<div class="mp-row"><span class="mp-label">Duggpunkt</span><span class="mp-val">' + data.dewpoint.toFixed(1) + '\u00b0C</span></div>' +
+        '<div class="mp-section">Fuktighet & sky</div>' +
+        '<div class="mp-row"><span class="mp-label">Luftfuktighet</span><span class="mp-val">' + Math.round(data.humidity) + '%</span></div>' +
+        '<div class="mp-row"><span class="mp-label">Skydekke</span><span class="mp-val">' + Math.round(data.cloudCover) + '%</span></div>' +
+        '<div class="mp-row"><span class="mp-label">Sikt</span><span class="mp-val">' + (data.visibility/1000).toFixed(1) + ' km</span></div>' +
+        '<div class="mp-section">Nedb\u00f8r & sn\u00f8</div>' +
+        '<div class="mp-row"><span class="mp-label">Nedb\u00f8r</span><span class="mp-val">' + data.precip.toFixed(1) + ' mm</span></div>' +
+        '<div class="mp-row"><span class="mp-label">Sannsynlighet</span><span class="mp-val">' + Math.round(data.precipProb) + '%</span></div>' +
+        '<div class="mp-row"><span class="mp-label">Sn\u00f8fall</span><span class="mp-val">' + data.snowfall.toFixed(1) + ' cm</span></div>' +
+        '<div class="mp-row"><span class="mp-label">Sn\u00f8dybde</span><span class="mp-val">' + data.snowDepth.toFixed(2) + ' m</span></div>' +
+        '<div class="mp-section">Annet</div>' +
+        '<div class="mp-row"><span class="mp-label">Lufttrykk</span><span class="mp-val">' + Math.round(data.pressure) + ' hPa</span></div>' +
+        '<div class="mp-row"><span class="mp-label">UV-indeks</span><span class="mp-val">' + data.uvIndex.toFixed(1) + '</span></div>' +
+        '<div class="mp-row"><span class="mp-label">V\u00e6r</span><span class="mp-val">' + wmoToEmoji(data.weatherCode) + ' ' + wmoToDesc(data.weatherCode) + '</span></div>' +
+        '<button class="mp-remove" onclick="removeWeatherMarker(' + markerId + ')">Fjern mark\u00f8r</button>' +
+        '</div>';
+}
+
+function removeWeatherMarker(id) {
+    const idx = weatherMarkers.findIndex(m => m.id === id);
+    if (idx >= 0) { map.removeLayer(weatherMarkers[idx].marker); weatherMarkers.splice(idx, 1); }
+}
+
+let markerIdCounter = 0;
+
+// =====================================================================
+// TOUR MODE — Route drawing
+// =====================================================================
+function haversine(lat1, lng1, lat2, lng2) {
+    const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function getTotalDistance() {
+    let d=0;
+    for (let i=1; i<tourWaypoints.length; i++)
+        d += haversine(tourWaypoints[i-1].lat, tourWaypoints[i-1].lng, tourWaypoints[i].lat, tourWaypoints[i].lng);
+    return d;
+}
+
+async function fetchElevations() {
+    if (tourWaypoints.length === 0) { tourElevations=[]; return; }
+    // Use Open-Meteo elevation API
+    const lats = tourWaypoints.map(w => w.lat.toFixed(4)).join(',');
+    const lngs = tourWaypoints.map(w => w.lng.toFixed(4)).join(',');
+    try {
+        const res = await fetch('https://api.open-meteo.com/v1/elevation?latitude=' + lats + '&longitude=' + lngs);
+        const json = await res.json();
+        tourElevations = json.elevation || [];
+    } catch(e) { console.warn('Elevation fetch failed:', e); }
+}
+
+function updateTourStats() {
+    const dist = getTotalDistance();
+    document.getElementById('tourDist').textContent = dist < 1 ? (dist*1000).toFixed(0) + ' m' : dist.toFixed(2) + ' km';
+    document.getElementById('tourPoints').textContent = tourWaypoints.length;
+
+    if (tourElevations.length >= 2) {
+        const min = Math.min(...tourElevations), max = Math.max(...tourElevations);
+        document.getElementById('tourElev').textContent = Math.round(min) + ' / ' + Math.round(max) + ' moh';
+        let asc=0, desc=0;
+        for (let i=1; i<tourElevations.length; i++) {
+            const diff = tourElevations[i]-tourElevations[i-1];
+            if (diff>0) asc+=diff; else desc+=Math.abs(diff);
+        }
+        document.getElementById('tourAscent').textContent = Math.round(asc) + ' m';
+        document.getElementById('tourDescent').textContent = Math.round(desc) + ' m';
+    } else {
+        document.getElementById('tourElev').textContent = '\u2014';
+        document.getElementById('tourAscent').textContent = '\u2014';
+        document.getElementById('tourDescent').textContent = '\u2014';
+    }
+    drawElevationProfile();
+}
+
+function drawElevationProfile() {
+    const canvas = document.getElementById('elevationProfile');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth * 2;
+    canvas.height = canvas.offsetHeight * 2;
+    ctx.scale(2,2);
+    const w = canvas.offsetWidth, h = canvas.offsetHeight;
+    ctx.clearRect(0,0,w,h);
+
+    if (tourElevations.length < 2) {
+        ctx.fillStyle='#444'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+        ctx.fillText('H\u00f8ydeprofil vises n\u00e5r ruten har 2+ punkter', w/2, h/2);
+        return;
+    }
+
+    const min = Math.min(...tourElevations)-20, max = Math.max(...tourElevations)+20;
+    const range = max-min || 1;
+    const pad = { top:10, bot:20, left:35, right:10 };
+    const pw = w-pad.left-pad.right, ph = h-pad.top-pad.bot;
+
+    // Cumulative distances
+    const dists = [0];
+    for (let i=1; i<tourWaypoints.length; i++) dists.push(dists[i-1]+haversine(tourWaypoints[i-1].lat,tourWaypoints[i-1].lng,tourWaypoints[i].lat,tourWaypoints[i].lng));
+    const totalDist = dists[dists.length-1] || 1;
+
+    // Fill gradient
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top+ph);
+    for (let i=0; i<tourElevations.length; i++) {
+        const x = pad.left + (dists[i]/totalDist)*pw;
+        const y = pad.top + ph - ((tourElevations[i]-min)/range)*ph;
+        if (i===0) ctx.lineTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.lineTo(pad.left+pw, pad.top+ph);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0,pad.top,0,pad.top+ph);
+    grad.addColorStop(0,'rgba(126,200,227,0.3)'); grad.addColorStop(1,'rgba(126,200,227,0.02)');
+    ctx.fillStyle = grad; ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    for (let i=0; i<tourElevations.length; i++) {
+        const x = pad.left + (dists[i]/totalDist)*pw;
+        const y = pad.top + ph - ((tourElevations[i]-min)/range)*ph;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle='#7ec8e3'; ctx.lineWidth=1.5; ctx.stroke();
+
+    // Points
+    for (let i=0; i<tourElevations.length; i++) {
+        const x = pad.left + (dists[i]/totalDist)*pw;
+        const y = pad.top + ph - ((tourElevations[i]-min)/range)*ph;
+        ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fillStyle='#7ec8e3'; ctx.fill();
+    }
+
+    // Y axis labels
+    ctx.fillStyle='#555'; ctx.font='9px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(Math.round(max)+' m', pad.left-4, pad.top+8);
+    ctx.fillText(Math.round(min)+' m', pad.left-4, pad.top+ph);
+
+    // X axis
+    ctx.textAlign='center';
+    ctx.fillText('0', pad.left, pad.top+ph+12);
+    ctx.fillText(totalDist.toFixed(1)+' km', pad.left+pw, pad.top+ph+12);
+}
+
+function updateTourPolyline() {
+    const latlngs = tourWaypoints.map(w => [w.lat, w.lng]);
+    if (tourPolyline) map.removeLayer(tourPolyline);
+    if (latlngs.length >= 2) {
+        tourPolyline = L.polyline(latlngs, { color:'#7ec8e3', weight:3, opacity:0.8 }).addTo(map);
+    }
+}
+
+function addTourWaypoint(lat, lng) {
+    tourWaypoints.push({ lat, lng });
+    const marker = L.circleMarker([lat, lng], {
+        radius: 6, color: '#7ec8e3', fillColor: '#7ec8e3', fillOpacity: 0.9, weight: 2
+    }).addTo(map);
+    const idx = tourWaypoints.length;
+    marker.bindTooltip('Punkt ' + idx, { direction:'top', offset:[0,-8] });
+    tourMarkers.push(marker);
+    updateTourPolyline();
+    fetchElevations().then(() => updateTourStats());
+}
+
+function undoTourPoint() {
+    if (tourWaypoints.length === 0) return;
+    tourWaypoints.pop();
+    const m = tourMarkers.pop();
+    if (m) map.removeLayer(m);
+    tourElevations = tourElevations.slice(0, tourWaypoints.length);
+    updateTourPolyline();
+    updateTourStats();
+}
+
+function clearTourRoute() {
+    tourWaypoints = []; tourElevations = [];
+    tourMarkers.forEach(m => map.removeLayer(m)); tourMarkers = [];
+    if (tourPolyline) { map.removeLayer(tourPolyline); tourPolyline = null; }
+    updateTourStats();
+}
+
+// =====================================================================
+// NVE LAYERS
+// =====================================================================
+function toggleSteepnessLayer() {
+    steepnessVisible = !steepnessVisible;
+    document.getElementById('toggleSteepness').classList.toggle('on', steepnessVisible);
+    document.getElementById('legend-steepness').style.display = steepnessVisible ? '' : 'none';
+
+    if (steepnessVisible && !steepnessLayer) {
+        steepnessLayer = L.tileLayer('https://gis3.nve.no/arcgis/rest/services/wmts/Bratthet_med_utlop_2024/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Bratthet: NVE', maxZoom: 18, opacity: 0.6, zIndex: 400
+        }).addTo(map);
+    } else if (steepnessVisible && steepnessLayer) {
+        steepnessLayer.addTo(map);
+    } else if (!steepnessVisible && steepnessLayer) {
+        map.removeLayer(steepnessLayer);
+    }
+}
+
+function toggleAvalancheLayer() {
+    avalancheVisible = !avalancheVisible;
+    document.getElementById('toggleAvalanche').classList.toggle('on', avalancheVisible);
+    document.getElementById('avalancheInfo').style.display = avalancheVisible ? '' : 'none';
+
+    if (avalancheVisible && !avalancheLayer) {
+        avalancheLayer = L.tileLayer('https://gis3.nve.no/arcgis/rest/services/wmts/KastsijkkelSn662024/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Sn\u00f8skred: NVE', maxZoom: 18, opacity: 0.5, zIndex: 399
+        }).addTo(map);
+        fetchAvalancheWarning();
+    } else if (avalancheVisible && avalancheLayer) {
+        avalancheLayer.addTo(map);
+        fetchAvalancheWarning();
+    } else if (!avalancheVisible && avalancheLayer) {
+        map.removeLayer(avalancheLayer);
+    }
+}
+
+async function fetchAvalancheWarning() {
+    const today = new Date().toISOString().substring(0,10);
+    // Region 3027 = Indre Fjordane (covers Sogn area). Try fetching from NVE API.
+    try {
+        const url = 'https://api01.nve.no/hydrology/forecast/avalanche/v6.3.0/api/AvalancheWarningByRegion/Simple/3027/1/' + today + '/' + today;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const json = await res.json();
+        if (json && json.length > 0) {
+            const w = json[0];
+            const dl = w.DangerLevel || w.dangerLevel || 0;
+            const rn = w.RegionName || w.regionName || 'Indre Fjordane';
+            const dangerNames = ['Ukjent','1 - Liten','2 - Moderat','3 - Betydelig','4 - Stor','5 - Meget stor'];
+            document.getElementById('avDanger').textContent = dangerNames[dl] || ('Faregrad ' + dl);
+            document.getElementById('avRegion').textContent = rn;
+            document.getElementById('avDate').textContent = today;
+            document.getElementById('avLevel').textContent = dangerNames[dl] || '';
+
+            const box = document.getElementById('avBox');
+            box.className = 'avalanche-box av-danger-' + Math.max(1, Math.min(5, dl));
+        }
+    } catch(e) {
+        document.getElementById('avDanger').textContent = 'Kunne ikke hente';
+        document.getElementById('avRegion').textContent = 'Sjekk varsom.no';
+        document.getElementById('avDate').textContent = today;
+        document.getElementById('avLevel').textContent = 'Se varsom.no for detaljer';
+    }
+}
+
+// =====================================================================
+// MAP EVENTS
+// =====================================================================
+map.on('movestart zoomstart', () => {
+    windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);
+    overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    particles.forEach(p => p.history = []);
+});
+
+map.on('moveend zoomend', () => {
+    clearTimeout(fetchDebounceTimer);
+    fetchDebounceTimer = setTimeout(() => { fetchWeatherGrid(); updateLocationSubtitle(); }, 600);
+});
+
+map.on('click', function(e) {
+    if (appMode === 'weather') {
+        // Place weather marker
+        const data = getDataAtLatLng(e.latlng.lat, e.latlng.lng, selectedDate, currentHour);
+        if (!data) return;
+        const id = ++markerIdCounter;
+        const marker = L.marker(e.latlng, { icon: L.divIcon({
+            className: '', html: '<div style="width:14px;height:14px;background:#7ec8e3;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>', iconSize:[14,14], iconAnchor:[7,7]
+        })}).addTo(map);
+        marker.bindPopup(createWeatherMarkerPopup(e.latlng.lat, e.latlng.lng, data, id), { maxWidth: 280 }).openPopup();
+        weatherMarkers.push({ id, marker });
+    } else if (appMode === 'tour' && tourDrawing) {
+        addTourWaypoint(e.latlng.lat, e.latlng.lng);
+    }
+});
+
+function updateLocationSubtitle() {
+    const c = map.getCenter();
+    document.getElementById('locationSubtitle').textContent = c.lat.toFixed(3)+'\u00b0N, '+c.lng.toFixed(3)+'\u00b0E';
+}
+
+// =====================================================================
+// INITIAL LOAD
+// =====================================================================
+async function loadData() {
+    const loading=document.getElementById('loading'), spinner=document.getElementById('spinner');
+    const errorText=document.getElementById('errorText'), retryBtn=document.getElementById('retryBtn'), loadingText=document.getElementById('loadingText');
+    loading.style.display='flex'; spinner.style.display='block'; errorText.style.display='none'; retryBtn.style.display='none';
+    loadingText.textContent='Henter v\u00e6rdata (' + (GRID_SIZE*GRID_SIZE) + ' punkter)...';
+    try {
+        await fetchWeatherGrid();
+        loading.style.display='none'; updateLocationSubtitle(); updateDisplay(); drawOverlay(); initParticles(); animate(); autoCollapseOnMobile();
+    } catch(e) {
+        spinner.style.display='none'; loadingText.textContent='Kunne ikke hente v\u00e6rdata';
+        errorText.style.display='block'; errorText.textContent=e.message; retryBtn.style.display='inline-block';
+    }
+}
+
+// =====================================================================
+// DATE BUTTONS
+// =====================================================================
+function formatDateShort(ds) { const days=['s\u00f8n','man','tir','ons','tor','fre','l\u00f8r']; const d=new Date(ds+'T12:00:00'); return days[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1); }
+function buildDateButtons() {
+    const row=document.getElementById('dateRow'); row.innerHTML='';
+    dates.forEach(function(date) {
+        const btn=document.createElement('button'); btn.className='date-btn'+(date===selectedDate?' active':''); btn.textContent=formatDateShort(date);
+        btn.onclick=function() { selectedDate=date; document.querySelectorAll('.date-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+            updateDisplay(); drawOverlay(); particles.forEach(p=>{p.history=[];p.age=0;}); windCtx.clearRect(0,0,windCanvas.width,windCanvas.height); };
+        row.appendChild(btn);
+    });
+}
+
+// =====================================================================
+// HELPERS
+// =====================================================================
+function directionName(d) { var dirs=['N','NN\u00d8','N\u00d8','\u00d8N\u00d8','\u00d8','\u00d8S\u00d8','S\u00d8','SS\u00d8','S','SSV','SV','VSV','V','VNV','NV','NNV']; return dirs[Math.round(d/22.5)%16]; }
+function beaufortScale(ms) { if(ms<0.3) return {level:0,name:'Stille'}; if(ms<1.6) return {level:1,name:'Flau vind'}; if(ms<3.4) return {level:2,name:'Svak vind'}; if(ms<5.5) return {level:3,name:'Lett bris'}; if(ms<8) return {level:4,name:'Laber bris'}; if(ms<10.8) return {level:5,name:'Frisk bris'}; if(ms<13.9) return {level:6,name:'Liten kuling'}; if(ms<17.2) return {level:7,name:'Stiv kuling'}; if(ms<20.8) return {level:8,name:'Sterk kuling'}; if(ms<24.5) return {level:9,name:'Liten storm'}; if(ms<28.5) return {level:10,name:'Full storm'}; if(ms<32.7) return {level:11,name:'Sterk storm'}; return {level:12,name:'Orkan'}; }
+
+// =====================================================================
+// DISPLAY
+// =====================================================================
+function updateDisplay() {
+    const c=map.getCenter(), data=getDataAtLatLng(c.lat,c.lng,selectedDate,currentHour);
+    if (!data) return;
+    document.getElementById('timeDisplay').textContent=String(currentHour).padStart(2,'0')+':00';
+    // Wind
+    var bf=beaufortScale(data.speed);
+    document.getElementById('wDir').textContent=Math.round(data.dir)+'\u00b0';
+    document.getElementById('wSpeed').textContent=data.speed.toFixed(1)+' m/s';
+    document.getElementById('wGust').textContent=data.gust.toFixed(1)+' m/s';
+    document.getElementById('wFrom').textContent=directionName(data.dir);
+    var pct=Math.min(100,(bf.level/12)*100); var fill=document.getElementById('beaufortFill');
+    fill.style.width=pct+'%'; fill.style.background=windColorHex(data.speed);
+    document.getElementById('beaufortLabel').textContent='Beaufort '+bf.level+' \u2014 '+bf.name;
+    // Temp
+    document.getElementById('tTemp').textContent=data.temp.toFixed(1)+'\u00b0C';
+    document.getElementById('tFeels').textContent=data.feelslike.toFixed(1)+'\u00b0C';
+    // Precip
+    document.getElementById('pAmount').textContent=data.precip.toFixed(1)+' mm';
+    document.getElementById('pProb').textContent=Math.round(data.precipProb)+'%';
+    document.getElementById('pSnow').textContent=data.snowfall.toFixed(1)+' cm';
+    document.getElementById('pType').textContent=data.snowfall>0.1?'Sn\u00f8':(data.precip>0.1?'Regn':'Ingen');
+    // Weather
+    document.getElementById('wxIcon').textContent=wmoToEmoji(data.weatherCode);
+    document.getElementById('wxDesc').textContent=wmoToDesc(data.weatherCode);
+    document.getElementById('wxCode').textContent=data.weatherCode;
+    document.getElementById('wxTemp').textContent=data.temp.toFixed(1)+'\u00b0C';
+    document.getElementById('wxWind').textContent=data.speed.toFixed(1)+' m/s '+directionName(data.dir);
+    document.getElementById('wxPrecip').textContent=data.precip.toFixed(1)+' mm';
+}
+
+// =====================================================================
+// TAB SWITCHING
+// =====================================================================
+function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.layer-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelector('.layer-tab[data-tab="'+tab+'"]').classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-'+tab).classList.add('active');
+    // Legends
+    ['wind','temp','precip','weather'].forEach(l => document.getElementById('legend-'+l).style.display = l===tab?'':'none');
+    // Wind canvas
+    if (tab==='wind') { windCanvas.style.display=''; if(animationEnabled){initParticles();if(animFrameId)cancelAnimationFrame(animFrameId);animate();} }
+    else { windCanvas.style.display='none'; windCtx.clearRect(0,0,windCanvas.width,windCanvas.height); }
+    drawOverlay();
+}
+document.querySelectorAll('.layer-tab').forEach(tab => { tab.addEventListener('click', ()=>switchTab(tab.dataset.tab)); });
+
+// =====================================================================
+// MODE SWITCHING
+// =====================================================================
+function switchMode(mode) {
+    appMode = mode;
+    document.querySelectorAll('.mode-menu-item').forEach(m=>m.classList.toggle('active',m.dataset.mode===mode));
+    document.getElementById('modeMenu').classList.remove('open');
+
+    if (mode === 'weather') {
+        document.getElementById('weatherPanel').style.display = '';
+        document.getElementById('tourPanel').style.display = 'none';
+        windCanvas.style.display = activeTab==='wind' ? '' : 'none';
+        overlayCanvas.style.display = '';
+        // Show relevant legend
+        ['wind','temp','precip','weather'].forEach(l => document.getElementById('legend-'+l).style.display = l===activeTab?'':'none');
+        document.getElementById('legend-steepness').style.display = 'none';
         drawOverlay();
+        if (activeTab==='wind' && animationEnabled) { initParticles(); animate(); }
+    } else {
+        document.getElementById('weatherPanel').style.display = 'none';
+        document.getElementById('tourPanel').style.display = '';
+        windCanvas.style.display = 'none';
+        overlayCanvas.style.display = 'none';
+        windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);
+        overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+        ['wind','temp','precip','weather'].forEach(l => document.getElementById('legend-'+l).style.display='none');
+        document.getElementById('legend-steepness').style.display = steepnessVisible ? '' : 'none';
+        updateTourStats();
     }
+}
 
-    document.querySelectorAll('.layer-tab').forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-    });
+// Hamburger menu
+document.getElementById('hamburgerBtn').addEventListener('click', function() {
+    document.getElementById('modeMenu').classList.toggle('open');
+});
+document.querySelectorAll('.mode-menu-item').forEach(item => {
+    item.addEventListener('click', () => switchMode(item.dataset.mode));
+});
+// Close menu on outside click
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.hamburger') && !e.target.closest('.mode-menu'))
+        document.getElementById('modeMenu').classList.remove('open');
+});
 
-    // === EVENTS ===
-    document.getElementById('timeSlider').addEventListener('input', function(e) {
-        currentHour = parseInt(e.target.value);
-        updateDisplay();
-        drawOverlay();
-        particles.forEach(function(p) { p.history = []; });
-        windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
-    });
+// =====================================================================
+// EVENT LISTENERS
+// =====================================================================
+document.getElementById('timeSlider').addEventListener('input', function(e) {
+    currentHour = parseInt(e.target.value); updateDisplay(); drawOverlay();
+    particles.forEach(p=>{p.history=[];}); windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);
+});
+document.getElementById('densitySlider').addEventListener('input', function(e) {
+    particleCount = parseInt(e.target.value); document.getElementById('densityDisplay').textContent = particleCount;
+});
+document.getElementById('particleToggle').addEventListener('click', function() {
+    animationEnabled = !animationEnabled; this.classList.toggle('on', animationEnabled);
+    if (animationEnabled) { initParticles(); animate(); }
+    else { if(animFrameId) cancelAnimationFrame(animFrameId); windCtx.clearRect(0,0,windCanvas.width,windCanvas.height); }
+});
 
-    document.getElementById('densitySlider').addEventListener('input', function(e) {
-        particleCount = parseInt(e.target.value);
-        document.getElementById('densityDisplay').textContent = particleCount;
-    });
+// Tour buttons
+document.getElementById('btnDrawRoute').addEventListener('click', function() { tourDrawing=!tourDrawing; this.classList.toggle('active',tourDrawing); });
+document.getElementById('btnUndoPoint').addEventListener('click', undoTourPoint);
+document.getElementById('btnClearRoute').addEventListener('click', clearTourRoute);
+document.getElementById('toggleSteepness').addEventListener('click', toggleSteepnessLayer);
+document.getElementById('toggleAvalanche').addEventListener('click', toggleAvalancheLayer);
 
-    document.getElementById('particleToggle').addEventListener('click', function() {
-        animationEnabled = !animationEnabled;
-        this.classList.toggle('on', animationEnabled);
-        if (animationEnabled) {
-            initParticles();
-            animate();
-        } else {
-            if (animFrameId) cancelAnimationFrame(animFrameId);
-            windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
-        }
-    });
+// Mobile
+var controlsVisible = true;
+document.getElementById('controlsToggle').addEventListener('click', function() {
+    controlsVisible = !controlsVisible;
+    document.querySelectorAll('.controls').forEach(c => c.classList.toggle('collapsed', !controlsVisible));
+});
+function autoCollapseOnMobile() { if (window.innerWidth<=600) { controlsVisible=false; document.querySelectorAll('.controls').forEach(c=>c.classList.add('collapsed')); } }
 
-    // === MOBILE TOGGLE ===
-    var controlsPanel = document.querySelector('.controls');
-    var controlsToggleBtn = document.getElementById('controlsToggle');
-    var controlsVisible = true;
+// Mobile performance
+if (window.innerWidth <= 600) { particleCount=300; document.getElementById('densitySlider').value=300; document.getElementById('densityDisplay').textContent='300'; }
 
-    controlsToggleBtn.addEventListener('click', function() {
-        controlsVisible = !controlsVisible;
-        controlsPanel.classList.toggle('collapsed', !controlsVisible);
-    });
-
-    function autoCollapseOnMobile() {
-        if (window.innerWidth <= 600) {
-            controlsVisible = false;
-            controlsPanel.classList.add('collapsed');
-        }
-    }
-
-    // === MOBILE PERFORMANCE ===
-    var isMobileDevice = window.innerWidth <= 600;
-    if (isMobileDevice) {
-        particleCount = 300;
-        document.getElementById('densitySlider').value = 300;
-        document.getElementById('densityDisplay').textContent = '300';
-    }
-
-    // === START ===
-    loadData();
-    </script>
+// =====================================================================
+// START
+// =====================================================================
+loadData();
+</script>
 </body>
 </html>
