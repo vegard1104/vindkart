@@ -13,6 +13,9 @@
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 450; pointer-events: none; }
         #overlayCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 440; pointer-events: none; }
 
+        /* Push Leaflet zoom controls below hamburger */
+        .leaflet-top.leaflet-left { top: 68px; }
+
         /* Hamburger menu */
         .hamburger {
             position: absolute; top: 16px; left: 16px; z-index: 1002;
@@ -26,7 +29,7 @@
         .hamburger svg { width: 22px; height: 22px; }
 
         .mode-menu {
-            position: absolute; top: 68px; left: 16px; z-index: 1002;
+            position: absolute; top: 68px; left: 16px; z-index: 1003;
             background: rgba(10,10,26,0.95); backdrop-filter: blur(16px);
             border-radius: 12px; padding: 6px; width: 200px;
             border: 1px solid rgba(126,200,227,0.15);
@@ -250,6 +253,7 @@
         @media (max-width: 600px) {
             .controls-toggle { display: flex; }
             .hamburger { top: 12px; left: 12px; width: 40px; height: 40px; }
+            .leaflet-top.leaflet-left { top: 60px; }
             .mode-menu { top: 60px; left: 12px; }
             .controls {
                 width: calc(100% - 24px); right: 12px; left: 12px; top: 64px;
@@ -1254,9 +1258,12 @@ function switchMode(mode) {
         document.getElementById('tourPanel').style.display = 'none';
         windCanvas.style.display = activeTab==='wind' ? '' : 'none';
         overlayCanvas.style.display = '';
-        // Show relevant legend
+        // Show relevant weather legend, hide tour legends
         ['wind','temp','precip','weather'].forEach(l => document.getElementById('legend-'+l).style.display = l===activeTab?'':'none');
         document.getElementById('legend-steepness').style.display = 'none';
+        // Hide NVE layers when in weather mode
+        if (steepnessLayer && map.hasLayer(steepnessLayer)) map.removeLayer(steepnessLayer);
+        if (avalancheLayer && map.hasLayer(avalancheLayer)) map.removeLayer(avalancheLayer);
         drawOverlay();
         if (activeTab==='wind' && animationEnabled) { initParticles(); animate(); }
     } else {
@@ -1268,6 +1275,10 @@ function switchMode(mode) {
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
         ['wind','temp','precip','weather'].forEach(l => document.getElementById('legend-'+l).style.display='none');
         document.getElementById('legend-steepness').style.display = steepnessVisible ? '' : 'none';
+        // Restore NVE layers if they were toggled on
+        if (steepnessVisible && steepnessLayer && !map.hasLayer(steepnessLayer)) steepnessLayer.addTo(map);
+        if (avalancheVisible && avalancheLayer && !map.hasLayer(avalancheLayer)) avalancheLayer.addTo(map);
+        document.getElementById('avalancheInfo').style.display = avalancheVisible ? '' : 'none';
         updateTourStats();
     }
 }
@@ -1310,11 +1321,19 @@ document.getElementById('toggleAvalanche').addEventListener('click', toggleAvala
 
 // Mobile
 var controlsVisible = true;
+function getActivePanel() { return appMode === 'weather' ? document.getElementById('weatherPanel') : document.getElementById('tourPanel'); }
 document.getElementById('controlsToggle').addEventListener('click', function() {
     controlsVisible = !controlsVisible;
-    document.querySelectorAll('.controls').forEach(c => c.classList.toggle('collapsed', !controlsVisible));
+    const panel = getActivePanel();
+    if (panel) panel.classList.toggle('collapsed', !controlsVisible);
 });
-function autoCollapseOnMobile() { if (window.innerWidth<=600) { controlsVisible=false; document.querySelectorAll('.controls').forEach(c=>c.classList.add('collapsed')); } }
+function autoCollapseOnMobile() {
+    if (window.innerWidth<=600) {
+        controlsVisible=false;
+        const panel = getActivePanel();
+        if (panel) panel.classList.add('collapsed');
+    }
+}
 
 // Mobile performance
 if (window.innerWidth <= 600) { particleCount=300; document.getElementById('densitySlider').value=300; document.getElementById('densityDisplay').textContent='300'; }
