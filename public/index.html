@@ -247,6 +247,7 @@
         .tt-badge-moderate { background: rgba(241,196,15,0.15); color: #f1c40f; border: 1px solid rgba(241,196,15,0.3); }
         .tt-badge-hard { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
         .tt-badge-season { background: rgba(126,200,227,0.1); color: #7ec8e3; border: 1px solid rgba(126,200,227,0.2); }
+        .tt-badge-osm { background: rgba(155,89,182,0.1); color: #9b59b6; border: 1px solid rgba(155,89,182,0.2); }
 
         /* Tour detail view */
         .topptur-detail { display: none; }
@@ -1524,10 +1525,114 @@ let selectedTopptur = null;
 let toppturRouteLayer = null;
 let toppturSummitMarker = null;
 
+// Dynamic peaks from OpenStreetMap Overpass API
+let osmPeaks = [];
+let osmFetchTimer = null;
+let osmFetching = false;
+let lastOsmBounds = null;
+
 function getDifficultyBadge(diff) {
     if (diff === 'enkel') return '<span class="tt-badge tt-badge-easy">Enkel</span>';
     if (diff === 'middels') return '<span class="tt-badge tt-badge-moderate">Middels</span>';
-    return '<span class="tt-badge tt-badge-hard">Krevende</span>';
+    if (diff === 'krevende') return '<span class="tt-badge tt-badge-hard">Krevende</span>';
+    return '<span class="tt-badge tt-badge-season">' + diff + '</span>';
+}
+
+// Estimate difficulty from elevation alone (for OSM peaks without curated data)
+function estimateDifficulty(altitude) {
+    if (altitude < 1200) return 'enkel';
+    if (altitude < 1600) return 'middels';
+    return 'krevende';
+}
+
+// Get tours visible in current map viewport
+function getVisibleTours() {
+    const bounds = map.getBounds();
+    const pad = 0.15;
+    const s = bounds.getSouth() - pad, n = bounds.getNorth() + pad;
+    const w = bounds.getWest() - pad, e = bounds.getEast() + pad;
+
+    // Filter curated tours
+    const curated = toppturer.filter(t => t.lat >= s && t.lat <= n && t.lng >= w && t.lng <= e)
+        .map(t => ({ ...t, source: 'curated' }));
+
+    // Filter OSM peaks (exclude those that are too close to curated tours to avoid duplicates)
+    const osm = osmPeaks.filter(p => {
+        if (p.lat < s || p.lat > n || p.lng < w || p.lng > e) return false;
+        // Skip if within ~1km of a curated tour
+        for (const ct of toppturer) {
+            if (haversine(p.lat, p.lng, ct.lat, ct.lng) < 1.0) return false;
+        }
+        return true;
+    }).map(p => ({ ...p, source: 'osm' }));
+
+    // Combine and sort by altitude descending
+    return [...curated, ...osm].sort((a, b) => b.altitude - a.altitude);
+}
+
+// Fetch peaks from OpenStreetMap Overpass API
+async function fetchOsmPeaks() {
+    if (osmFetching) return;
+    const bounds = map.getBounds();
+    const zoom = map.getZoom();
+
+    // Only fetch peaks at reasonable zoom levels
+    if (zoom < 8) { osmPeaks = []; if (appMode === 'tour' && activeTourTab === 'toppturer' && !selectedTopptur) renderToppturList(); return; }
+
+    // Skip if bounds haven't changed significantly
+    if (lastOsmBounds) {
+        const cOld = lastOsmBounds.getCenter(), cNew = bounds.getCenter();
+        if (haversine(cOld.lat, cOld.lng, cNew.lat, cNew.lng) < 5 && Math.abs(map.getZoom() - lastOsmBounds._zoom) < 2) return;
+    }
+
+    osmFetching = true;
+    const s = bounds.getSouth().toFixed(4), w = bounds.getWest().toFixed(4);
+    const n = bounds.getNorth().toFixed(4), e = bounds.getEast().toFixed(4);
+
+    // Overpass query for peaks >= 800m within bounds
+    const query = '[out:json][timeout:15];node["natural"="peak"]('+s+','+w+','+n+','+e+');out body;';
+    try {
+        const res = await fetch('https://overpass-api.de/api/interpreter', {
+            method: 'POST', body: 'data=' + encodeURIComponent(query),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const json = await res.json();
+
+        let idCounter = 10000;
+        osmPeaks = (json.elements || [])
+            .filter(el => el.tags && el.tags.name && el.tags.ele && parseFloat(el.tags.ele) >= 800)
+            .map(el => {
+                const alt = Math.round(parseFloat(el.tags.ele));
+                return {
+                    id: idCounter++,
+                    name: el.tags.name,
+                    altitude: alt,
+                    area: el.tags['is_in'] || el.tags['is_in:municipality'] || 'Vestland',
+                    distance: null,
+                    elevationGain: null,
+                    difficulty: estimateDifficulty(alt),
+                    season: alt > 1400 ? 'Mar\u2013Jun' : 'Jan\u2013Apr',
+                    aspect: null,
+                    lat: el.lat, lng: el.lon,
+                    route: null,
+                    description: 'Fjelltopp fra OpenStreetMap (' + alt + ' moh). Ingen detaljert turbeskrivelse tilgjengelig enn\u00e5.',
+                    tips: 'Sjekk lokale forhold og skredvarsel f\u00f8r turen.',
+                    source: 'osm'
+                };
+            });
+
+        lastOsmBounds = bounds;
+        lastOsmBounds._zoom = zoom;
+
+        // Refresh list if viewing toppturer
+        if (appMode === 'tour' && activeTourTab === 'toppturer' && !selectedTopptur) {
+            renderToppturList();
+        }
+    } catch(e) {
+        console.warn('Overpass API fetch failed:', e);
+    }
+    osmFetching = false;
 }
 
 function renderToppturList() {
@@ -1536,28 +1641,59 @@ function renderToppturList() {
     list.style.display = ''; detail.style.display = 'none'; detail.classList.remove('active');
     selectedTopptur = null; clearToppturRoute();
 
-    list.innerHTML = toppturer.map(t => {
-        return '<div class="topptur-card" onclick="showToppturDetail(' + t.id + ')">' +
+    const visible = getVisibleTours();
+
+    if (visible.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:20px 10px;color:#555;font-size:12px;">' +
+            '<div style="font-size:28px;margin-bottom:8px;">\u26F0\uFE0F</div>' +
+            'Ingen toppturer funnet i dette omr\u00e5det.<br><br>' +
+            '<span style="color:#666;">Flytt kartet til et fjellomr\u00e5de for \u00e5 se tilgjengelige turer, eller zoom ut.</span></div>';
+        return;
+    }
+
+    const curatedCount = visible.filter(t => t.source === 'curated').length;
+    const osmCount = visible.filter(t => t.source === 'osm').length;
+
+    let header = '<div style="font-size:10px;color:#555;margin-bottom:8px;padding:0 2px;">' +
+        '\uD83D\uDCCD ' + visible.length + ' topper i kartutsnitt';
+    if (curatedCount > 0 && osmCount > 0) {
+        header += ' (' + curatedCount + ' med turbeskrivelse, ' + osmCount + ' fra OSM)';
+    }
+    header += '</div>';
+
+    list.innerHTML = header + visible.map(t => {
+        const isCurated = t.source === 'curated';
+        const borderStyle = isCurated ? '' : 'border-left:3px solid rgba(155,89,182,0.4);';
+        const icon = isCurated ? '\u26F7\uFE0F' : '\u26F0\uFE0F';
+
+        let statsHtml = '';
+        if (t.elevationGain) statsHtml += '<span class="tt-stat">\u2195 <span class="tt-stat-val">' + t.elevationGain + ' m</span></span>';
+        if (t.distance) statsHtml += '<span class="tt-stat">\u27F6 <span class="tt-stat-val">' + t.distance + ' km</span></span>';
+        statsHtml += '<span class="tt-stat">\u2B06 <span class="tt-stat-val">' + t.altitude + ' m</span></span>';
+
+        return '<div class="topptur-card" style="' + borderStyle + '" onclick="showToppturDetail(' + t.id + ',\'' + t.source + '\')">' +
             '<div class="tt-header">' +
-                '<span class="tt-icon">\u26F7\uFE0F</span>' +
+                '<span class="tt-icon">' + icon + '</span>' +
                 '<div><div class="tt-title">' + t.name + ' (' + t.altitude + ' moh)</div>' +
-                '<div class="tt-subtitle">' + t.area + '</div></div>' +
+                '<div class="tt-subtitle">' + t.area + (isCurated ? '' : ' \u00b7 <span style="color:#9b59b6;">OSM</span>') + '</div></div>' +
             '</div>' +
-            '<div class="tt-stats">' +
-                '<span class="tt-stat">\u2195 <span class="tt-stat-val">' + t.elevationGain + ' m</span></span>' +
-                '<span class="tt-stat">\u27F6 <span class="tt-stat-val">' + t.distance + ' km</span></span>' +
-                '<span class="tt-stat">\u2B06 <span class="tt-stat-val">' + t.altitude + ' m</span></span>' +
-            '</div>' +
+            '<div class="tt-stats">' + statsHtml + '</div>' +
             '<div class="tt-badges">' +
                 getDifficultyBadge(t.difficulty) +
-                '<span class="tt-badge tt-badge-season">' + t.season + '</span>' +
+                (t.season ? '<span class="tt-badge tt-badge-season">' + t.season + '</span>' : '') +
             '</div>' +
         '</div>';
     }).join('');
 }
 
-function showToppturDetail(id) {
-    const t = toppturer.find(x => x.id === id);
+function findTourById(id, source) {
+    if (source === 'curated') return toppturer.find(x => x.id === id);
+    return osmPeaks.find(x => x.id === id);
+}
+
+function showToppturDetail(id, source) {
+    source = source || 'curated';
+    const t = findTourById(id, source);
     if (!t) return;
     selectedTopptur = t;
 
@@ -1566,28 +1702,32 @@ function showToppturDetail(id) {
     list.style.display = 'none';
     detail.style.display = 'block'; detail.classList.add('active');
 
+    const isCurated = source === 'curated';
+    const icon = isCurated ? '\u26F7\uFE0F' : '\u26F0\uFE0F';
+
+    let statsHtml = '<div class="tt-detail-stat"><div class="ds-label">H\u00f8yde</div><div class="ds-val">' + t.altitude + ' m</div></div>';
+    if (t.elevationGain) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Stigning</div><div class="ds-val">' + t.elevationGain + ' m</div></div>';
+    if (t.distance) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Distanse</div><div class="ds-val">' + t.distance + ' km</div></div>';
+    if (t.aspect) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Eksposisjon</div><div class="ds-val">' + t.aspect + '</div></div>';
+    if (!isCurated) statsHtml += '<div class="tt-detail-stat"><div class="ds-label">Kilde</div><div class="ds-val" style="color:#9b59b6;">OpenStreetMap</div></div>';
+
+    let descHtml = '<div style="margin-bottom:8px;">' + t.description + '</div>';
+    if (t.tips) descHtml += '<div style="color:#7ec8e3;font-size:11px;font-weight:600;">Tips:</div><div style="font-size:11px;color:#888;">' + t.tips + '</div>';
+
+    let actionsHtml = '<button class="tour-btn" onclick="showToppturOnMap(' + t.id + ',\'' + source + '\')">\uD83D\uDDFA\uFE0F Vis p\u00e5 kart</button>';
+    if (isCurated && t.route) {
+        actionsHtml += '<button class="tour-btn" onclick="planFromTopptur(' + t.id + ')">\u270E Planlegg rute</button>';
+    }
+
     detail.innerHTML =
         '<button class="tt-detail-back" onclick="renderToppturList()">\u2190 Tilbake til listen</button>' +
-        '<div class="tt-detail-name">\u26F7\uFE0F ' + t.name + '</div>' +
+        '<div class="tt-detail-name">' + icon + ' ' + t.name + '</div>' +
         '<div class="tt-detail-area">' + t.area + ' &middot; ' + getDifficultyBadge(t.difficulty) + '</div>' +
-        '<div class="tt-detail-stats">' +
-            '<div class="tt-detail-stat"><div class="ds-label">H\u00f8yde</div><div class="ds-val">' + t.altitude + ' m</div></div>' +
-            '<div class="tt-detail-stat"><div class="ds-label">Stigning</div><div class="ds-val">' + t.elevationGain + ' m</div></div>' +
-            '<div class="tt-detail-stat"><div class="ds-label">Distanse</div><div class="ds-val">' + t.distance + ' km</div></div>' +
-            '<div class="tt-detail-stat"><div class="ds-label">Eksposisjon</div><div class="ds-val">' + t.aspect + '</div></div>' +
-        '</div>' +
-        '<div class="tt-detail-desc">' +
-            '<div style="margin-bottom:8px;">' + t.description + '</div>' +
-            '<div style="color:#7ec8e3;font-size:11px;font-weight:600;">Tips:</div>' +
-            '<div style="font-size:11px;color:#888;">' + t.tips + '</div>' +
-        '</div>' +
-        '<div class="tt-detail-actions">' +
-            '<button class="tour-btn" onclick="showToppturOnMap(' + t.id + ')">\uD83D\uDDFA\uFE0F Vis p\u00e5 kart</button>' +
-            '<button class="tour-btn" onclick="planFromTopptur(' + t.id + ')">\u270E Planlegg rute</button>' +
-        '</div>';
+        '<div class="tt-detail-stats">' + statsHtml + '</div>' +
+        '<div class="tt-detail-desc">' + descHtml + '</div>' +
+        '<div class="tt-detail-actions">' + actionsHtml + '</div>';
 
-    // Show route on map
-    showToppturOnMap(t.id);
+    showToppturOnMap(t.id, source);
 }
 
 function clearToppturRoute() {
@@ -1595,12 +1735,13 @@ function clearToppturRoute() {
     if (toppturSummitMarker) { map.removeLayer(toppturSummitMarker); toppturSummitMarker = null; }
 }
 
-function showToppturOnMap(id) {
-    const t = toppturer.find(x => x.id === id);
+function showToppturOnMap(id, source) {
+    source = source || 'curated';
+    const t = findTourById(id, source);
     if (!t) return;
     clearToppturRoute();
 
-    // Draw route
+    // Draw route if available
     if (t.route && t.route.length >= 2) {
         toppturRouteLayer = L.polyline(t.route, {
             color: '#f39c12', weight: 3, opacity: 0.9, dashArray: '8,6'
@@ -1608,10 +1749,12 @@ function showToppturOnMap(id) {
     }
 
     // Summit marker
+    const markerColor = source === 'curated' ? 'rgba(243,156,18,0.95)' : 'rgba(155,89,182,0.95)';
+    const markerIcon = source === 'curated' ? '\u26F7' : '\u26F0';
     toppturSummitMarker = L.marker([t.lat, t.lng], {
         icon: L.divIcon({
             className: '',
-            html: '<div style="background:rgba(243,156,18,0.95);color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.3);">\u26F7 ' + t.name + ' ' + t.altitude + 'm</div>',
+            html: '<div style="background:' + markerColor + ';color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.3);">' + markerIcon + ' ' + t.name + ' ' + t.altitude + 'm</div>',
             iconSize: [0, 0], iconAnchor: [-5, 15]
         })
     }).addTo(map);
@@ -1627,16 +1770,10 @@ function showToppturOnMap(id) {
 function planFromTopptur(id) {
     const t = toppturer.find(x => x.id === id);
     if (!t || !t.route) return;
-
-    // Switch to planlegg tab and populate route
     switchTourTab('planlegg');
     clearTourRoute();
     clearToppturRoute();
-
-    // Add each route point as a tour waypoint
-    t.route.forEach(pt => {
-        addTourWaypoint(pt[0], pt[1]);
-    });
+    t.route.forEach(pt => addTourWaypoint(pt[0], pt[1]));
 }
 
 // Tour section tab switching
@@ -1646,8 +1783,11 @@ function switchTourTab(tab) {
     document.querySelectorAll('.tour-section-content').forEach(c => c.classList.remove('active'));
     document.getElementById('tourtab-' + tab).classList.add('active');
 
-    if (tab === 'toppturer' && !selectedTopptur) {
-        renderToppturList();
+    if (tab === 'toppturer') {
+        if (!selectedTopptur) renderToppturList();
+        // Trigger OSM fetch for current area
+        clearTimeout(osmFetchTimer);
+        osmFetchTimer = setTimeout(fetchOsmPeaks, 300);
     }
     if (tab === 'planlegg') {
         clearToppturRoute();
@@ -1658,8 +1798,20 @@ document.querySelectorAll('.tour-section-tab').forEach(tab => {
     tab.addEventListener('click', () => switchTourTab(tab.dataset.tourtab));
 });
 
+// Auto-refresh tour list when map moves (if in tour/toppturer mode)
+map.on('moveend zoomend', function() {
+    if (appMode === 'tour' && activeTourTab === 'toppturer' && !selectedTopptur) {
+        renderToppturList();
+        // Debounced OSM fetch
+        clearTimeout(osmFetchTimer);
+        osmFetchTimer = setTimeout(fetchOsmPeaks, 800);
+    }
+});
+
 // Render list on initial load
 renderToppturList();
+// Initial OSM fetch
+setTimeout(fetchOsmPeaks, 1500);
 
 // Tour buttons
 document.getElementById('btnDrawRoute').addEventListener('click', function() { tourDrawing=!tourDrawing; this.classList.toggle('active',tourDrawing); });
