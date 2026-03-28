@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vindkart &#8212; Sogn</title>
+    <title>V&aelig;rkart &mdash; Sogn</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <style>
@@ -11,15 +11,37 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a1a; color: #e0e0e0; }
         #map { width: 100%; height: 100vh; }
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 450; pointer-events: none; }
+        #overlayCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 440; pointer-events: none; }
 
         .controls {
             position: absolute; top: 16px; right: 16px; z-index: 1000;
             background: rgba(10, 10, 26, 0.88); backdrop-filter: blur(16px);
-            border-radius: 16px; padding: 20px 22px; width: 320px;
+            border-radius: 16px; padding: 0 0 20px 0; width: 320px;
             box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(126,200,227,0.12);
+            overflow: hidden;
         }
-        .controls h2 { font-size: 20px; font-weight: 700; color: #7ec8e3; margin-bottom: 2px; letter-spacing: -0.3px; }
-        .controls .subtitle { font-size: 11px; color: #666; margin-bottom: 14px; }
+        .controls-header { padding: 18px 22px 0 22px; }
+        .controls-header h2 { font-size: 20px; font-weight: 700; color: #7ec8e3; margin-bottom: 2px; letter-spacing: -0.3px; }
+        .controls-header .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; }
+        .controls-body { padding: 0 22px; }
+
+        /* Tabs */
+        .layer-tabs {
+            display: flex; border-bottom: 1px solid rgba(126,200,227,0.12);
+            background: rgba(126,200,227,0.03); margin-bottom: 14px;
+        }
+        .layer-tab {
+            flex: 1; padding: 10px 4px; text-align: center; cursor: pointer;
+            font-size: 11px; font-weight: 600; color: #555; letter-spacing: 0.3px;
+            border-bottom: 2px solid transparent; transition: all 0.2s;
+            text-transform: uppercase; background: none; border-top: none; border-left: none; border-right: none;
+        }
+        .layer-tab:hover { color: #999; background: rgba(126,200,227,0.04); }
+        .layer-tab.active { color: #7ec8e3; border-bottom-color: #7ec8e3; }
+        .layer-tab .tab-icon { font-size: 15px; display: block; margin-bottom: 2px; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
         .date-scroll { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: #333 transparent; }
         .date-scroll::-webkit-scrollbar { height: 4px; }
@@ -47,14 +69,14 @@
             box-shadow: 0 0 8px rgba(126,200,227,0.4);
         }
 
-        .wind-info {
+        .info-box {
             background: rgba(126,200,227,0.06); border-radius: 12px; padding: 12px 14px;
             border: 1px solid rgba(126,200,227,0.1);
         }
-        .wind-info .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .wind-info .row:last-child { margin-bottom: 0; }
-        .wind-info .label { color: #666; font-size: 12px; }
-        .wind-info .val { color: #fff; font-size: 12px; font-weight: 600; }
+        .info-box .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .info-box .row:last-child { margin-bottom: 0; }
+        .info-box .label { color: #666; font-size: 12px; }
+        .info-box .val { color: #fff; font-size: 12px; font-weight: 600; }
 
         .beaufort-bar { margin-top: 10px; background: #151530; border-radius: 4px; height: 6px; overflow: hidden; }
         .beaufort-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease, background 0.4s ease; }
@@ -79,6 +101,27 @@
             background: #555; border-radius: 50%; transition: all 0.3s;
         }
         .toggle-switch.on::after { left: 18px; background: #7ec8e3; }
+
+        /* Temperature gradient legend */
+        .temp-gradient {
+            margin-top: 10px; height: 6px; border-radius: 3px;
+            background: linear-gradient(90deg, #3b48d9, #4a9ebe, #2ecc71, #f1c40f, #e67e22, #e74c3c);
+        }
+        .temp-labels { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
+
+        /* Precipitation gradient legend */
+        .precip-gradient {
+            margin-top: 10px; height: 6px; border-radius: 3px;
+            background: linear-gradient(90deg, #2c3e50, #3498db, #2980b9, #8e44ad);
+        }
+        .precip-labels { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
+
+        /* Weather icon display */
+        .weather-icon-display {
+            text-align: center; margin: 10px 0;
+        }
+        .weather-icon-display .icon { font-size: 48px; }
+        .weather-icon-display .desc { font-size: 13px; color: #aaa; margin-top: 4px; }
 
         .api-badge { display: inline-block; font-size: 9px; color: #444; padding: 2px 6px; border-radius: 3px; margin-top: 8px; }
 
@@ -131,15 +174,17 @@
             .controls-toggle { display: flex; }
             .controls {
                 width: calc(100% - 24px); right: 12px; left: 12px; top: 64px;
-                padding: 14px 14px; border-radius: 14px;
+                border-radius: 14px;
                 max-height: calc(100vh - 80px); overflow-y: auto;
                 transition: transform 0.3s ease, opacity 0.3s ease;
             }
             .controls.collapsed {
                 transform: translateY(-10px); opacity: 0; pointer-events: none; visibility: hidden;
             }
-            .controls h2 { font-size: 17px; }
-            .controls .subtitle { font-size: 10px; margin-bottom: 10px; }
+            .controls-header h2 { font-size: 17px; }
+            .controls-header .subtitle { font-size: 10px; margin-bottom: 10px; }
+            .layer-tab { font-size: 10px; padding: 8px 2px; }
+            .layer-tab .tab-icon { font-size: 13px; }
             .date-scroll { gap: 5px; margin-bottom: 10px; }
             .date-btn { padding: 8px 11px; font-size: 12px; min-height: 36px; }
             .control-group { margin-bottom: 10px; }
@@ -147,8 +192,8 @@
             .control-group label { font-size: 10px; }
             input[type="range"] { height: 6px; }
             input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
-            .wind-info { padding: 10px 12px; }
-            .wind-info .label, .wind-info .val { font-size: 12px; }
+            .info-box { padding: 10px 12px; }
+            .info-box .label, .info-box .val { font-size: 12px; }
             .legend {
                 bottom: 10px; left: 10px; padding: 7px 10px; font-size: 10px;
                 border-radius: 8px; max-width: 160px;
@@ -156,13 +201,14 @@
             .legend-dot { width: 6px; height: 6px; }
             .legend-item { gap: 5px; margin-bottom: 2px; }
             .particle-toggle { margin-top: 8px; }
-            .speed-labels { font-size: 8px; }
+            .speed-labels, .temp-labels, .precip-labels { font-size: 8px; }
             .api-badge { font-size: 8px; }
             .grid-status { bottom: 10px; right: 10px; font-size: 9px; }
         }
 
         @media (max-width: 380px) {
-            .controls { padding: 12px 10px; }
+            .controls-header { padding: 14px 14px 0 14px; }
+            .controls-body { padding: 0 14px; }
             .control-group .value { font-size: 20px; }
             .date-btn { padding: 7px 9px; font-size: 11px; }
         }
@@ -172,13 +218,14 @@
     <div id="loading" class="loading-overlay">
         <div class="loading-box">
             <div class="spinner" id="spinner"></div>
-            <div id="loadingText">Henter vinddata...</div>
+            <div id="loadingText">Henter v&aelig;rdata...</div>
             <div class="error" id="errorText" style="display:none;"></div>
-            <button class="retry-btn" id="retryBtn" style="display:none;" onclick="loadData()">Pr&#248;v igjen</button>
+            <button class="retry-btn" id="retryBtn" style="display:none;" onclick="loadData()">Pr&oslash;v igjen</button>
         </div>
     </div>
 
     <div id="map"></div>
+    <canvas id="overlayCanvas"></canvas>
     <canvas id="windCanvas"></canvas>
 
     <button class="controls-toggle" id="controlsToggle" aria-label="Vis/skjul kontroller">
@@ -192,51 +239,128 @@
     </button>
 
     <div class="controls">
-        <h2>Vindkart</h2>
-        <div class="subtitle" id="locationSubtitle">Kartsentrum</div>
-
-        <div class="date-scroll" id="dateRow"></div>
-
-        <div class="control-group">
-            <label>Klokkeslett</label>
-            <div class="value" id="timeDisplay">12:00</div>
-            <input type="range" id="timeSlider" min="0" max="23" value="12" step="1">
+        <div class="controls-header">
+            <h2>V&aelig;rkart</h2>
+            <div class="subtitle" id="locationSubtitle">Kartsentrum</div>
         </div>
 
-        <div class="control-group">
-            <label>Partikkeltetthet</label>
-            <div class="value"><span id="densityDisplay">500</span></div>
-            <input type="range" id="densitySlider" min="100" max="2000" value="500" step="50">
+        <!-- Layer tabs -->
+        <div class="layer-tabs">
+            <button class="layer-tab active" data-tab="wind"><span class="tab-icon">&#127744;</span>Vind</button>
+            <button class="layer-tab" data-tab="temp"><span class="tab-icon">&#127777;</span>Temp</button>
+            <button class="layer-tab" data-tab="precip"><span class="tab-icon">&#127783;</span>Nedb&oslash;r</button>
+            <button class="layer-tab" data-tab="weather"><span class="tab-icon">&#9728;</span>V&aelig;r</button>
         </div>
 
-        <div class="wind-info">
-            <div class="row"><span class="label">Vindretning (senter)</span><span class="val" id="wDir">&#8212;</span></div>
-            <div class="row"><span class="label">Vindhastighet (senter)</span><span class="val" id="wSpeed">&#8212;</span></div>
-            <div class="row"><span class="label">Vindkast (senter)</span><span class="val" id="wGust">&#8212;</span></div>
-            <div class="row"><span class="label">Vinden fra</span><span class="val" id="wFrom">&#8212;</span></div>
-            <div class="beaufort-bar"><div class="beaufort-fill" id="beaufortFill"></div></div>
-            <div class="beaufort-label" id="beaufortLabel"></div>
+        <div class="controls-body">
+            <div class="date-scroll" id="dateRow"></div>
+
+            <div class="control-group">
+                <label>Klokkeslett</label>
+                <div class="value" id="timeDisplay">12:00</div>
+                <input type="range" id="timeSlider" min="0" max="23" value="12" step="1">
+            </div>
+
+            <!-- WIND TAB -->
+            <div class="tab-content active" id="tab-wind">
+                <div class="control-group">
+                    <label>Partikkeltetthet</label>
+                    <div class="value"><span id="densityDisplay">500</span></div>
+                    <input type="range" id="densitySlider" min="100" max="2000" value="500" step="50">
+                </div>
+
+                <div class="info-box">
+                    <div class="row"><span class="label">Vindretning (senter)</span><span class="val" id="wDir">&mdash;</span></div>
+                    <div class="row"><span class="label">Vindhastighet (senter)</span><span class="val" id="wSpeed">&mdash;</span></div>
+                    <div class="row"><span class="label">Vindkast (senter)</span><span class="val" id="wGust">&mdash;</span></div>
+                    <div class="row"><span class="label">Vinden fra</span><span class="val" id="wFrom">&mdash;</span></div>
+                    <div class="beaufort-bar"><div class="beaufort-fill" id="beaufortFill"></div></div>
+                    <div class="beaufort-label" id="beaufortLabel"></div>
+                </div>
+
+                <div class="speed-gradient"></div>
+                <div class="speed-labels"><span>0</span><span>5</span><span>10</span><span>15</span><span>20+</span></div>
+
+                <div class="particle-toggle">
+                    <div class="toggle-switch on" id="particleToggle"></div>
+                    <span>Vindanimasjon</span>
+                </div>
+            </div>
+
+            <!-- TEMPERATURE TAB -->
+            <div class="tab-content" id="tab-temp">
+                <div class="info-box">
+                    <div class="row"><span class="label">Temperatur (senter)</span><span class="val" id="tTemp">&mdash;</span></div>
+                    <div class="row"><span class="label">F&oslash;les som</span><span class="val" id="tFeels">&mdash;</span></div>
+                </div>
+                <div class="temp-gradient"></div>
+                <div class="temp-labels"><span>-20&deg;</span><span>-10&deg;</span><span>0&deg;</span><span>10&deg;</span><span>20&deg;</span><span>30&deg;+</span></div>
+            </div>
+
+            <!-- PRECIPITATION TAB -->
+            <div class="tab-content" id="tab-precip">
+                <div class="info-box">
+                    <div class="row"><span class="label">Nedb&oslash;r (senter)</span><span class="val" id="pAmount">&mdash;</span></div>
+                    <div class="row"><span class="label">Sannsynlighet</span><span class="val" id="pProb">&mdash;</span></div>
+                    <div class="row"><span class="label">Sn&oslash;fall</span><span class="val" id="pSnow">&mdash;</span></div>
+                    <div class="row"><span class="label">Type</span><span class="val" id="pType">&mdash;</span></div>
+                </div>
+                <div class="precip-gradient"></div>
+                <div class="precip-labels"><span>0 mm</span><span>1 mm</span><span>5 mm</span><span>10+ mm</span></div>
+            </div>
+
+            <!-- WEATHER TAB -->
+            <div class="tab-content" id="tab-weather">
+                <div class="weather-icon-display">
+                    <div class="icon" id="wxIcon">&#9728;</div>
+                    <div class="desc" id="wxDesc">Klarvær</div>
+                </div>
+                <div class="info-box">
+                    <div class="row"><span class="label">V&aelig;rkode (WMO)</span><span class="val" id="wxCode">&mdash;</span></div>
+                    <div class="row"><span class="label">Temperatur</span><span class="val" id="wxTemp">&mdash;</span></div>
+                    <div class="row"><span class="label">Vind</span><span class="val" id="wxWind">&mdash;</span></div>
+                    <div class="row"><span class="label">Nedb&oslash;r</span><span class="val" id="wxPrecip">&mdash;</span></div>
+                </div>
+            </div>
+
+            <div class="api-badge">Kilde: Open-Meteo (MET Norway)</div>
         </div>
-
-        <div class="speed-gradient"></div>
-        <div class="speed-labels"><span>0</span><span>5</span><span>10</span><span>15</span><span>20+</span></div>
-
-        <div class="particle-toggle">
-            <div class="toggle-switch on" id="particleToggle"></div>
-            <span>Vindanimasjon</span>
-        </div>
-
-        <div class="api-badge">Kilde: Open-Meteo (MET Norway)</div>
     </div>
 
-    <div class="legend">
+    <!-- Wind legend (only visible on wind tab) -->
+    <div class="legend" id="legend-wind">
         <div class="legend-item"><div class="legend-dot" style="background:#4a9ebe;"></div> Svak vind (&lt;5 m/s)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> Lett bris (5&#8211;8 m/s)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#f1c40f;"></div> Frisk bris (8&#8211;14 m/s)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> Lett bris (5&ndash;8 m/s)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f1c40f;"></div> Frisk bris (8&ndash;14 m/s)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Kuling+ (&gt;14 m/s)</div>
     </div>
 
-    <div class="grid-status" id="gridStatus">Vindrutenett: laster...</div>
+    <!-- Temperature legend -->
+    <div class="legend" id="legend-temp" style="display:none;">
+        <div class="legend-item"><div class="legend-dot" style="background:#3b48d9;"></div> Under -10&deg;C</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4a9ebe;"></div> -10 til 0&deg;C</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> 0 til 10&deg;C</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f1c40f;"></div> 10 til 20&deg;C</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> Over 20&deg;C</div>
+    </div>
+
+    <!-- Precipitation legend -->
+    <div class="legend" id="legend-precip" style="display:none;">
+        <div class="legend-item"><div class="legend-dot" style="background:#2c3e50;"></div> T&oslash;rt (0 mm)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3498db;"></div> Lett (&lt;1 mm)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2980b9;"></div> Moderat (1&ndash;5 mm)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#8e44ad;"></div> Kraftig (&gt;5 mm)</div>
+    </div>
+
+    <!-- Weather legend -->
+    <div class="legend" id="legend-weather" style="display:none;">
+        <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div> Sol / Klart</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#95a5a6;"></div> Overskyet</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3498db;"></div> Regn</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ecf0f1;"></div> Sn&oslash;</div>
+    </div>
+
+    <div class="grid-status" id="gridStatus">V&aelig;rrutenett: laster...</div>
 
     <script>
     // === CONFIG ===
@@ -254,177 +378,141 @@
     let animFrameId = null;
     let isLoadingGrid = false;
     let fetchDebounceTimer = null;
+    let activeTab = 'wind'; // wind | temp | precip | weather
 
-    // Wind grid: stores wind data for a grid of lat/lng points
-    // windGrid[date][hour] = { lats: [], lngs: [], dirs: [][], speeds: [][], gusts: [][] }
-    let windGrid = {};
-    let gridBounds = null; // { south, north, west, east }
+    // Weather grid: stores all weather data for a grid of lat/lng points
+    // weatherGrid[date][hour] = { dirs, speeds, gusts, temps, feelslike, precip, precipProb, snowfall, weatherCode }
+    let weatherGrid = {};
+    let gridBounds = null;
     let gridLats = [];
     let gridLngs = [];
 
     // === MAP ===
     const map = L.map('map', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 10);
     L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
-        attribution: '&copy; <a href="https://kartverket.no">Kartverket</a> | Vind: Open-Meteo',
+        attribution: '&copy; <a href="https://kartverket.no">Kartverket</a> | V&aelig;r: Open-Meteo',
         maxZoom: 18
     }).addTo(map);
 
     const centerMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
         radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 0.9, weight: 2
-    }).addTo(map).bindPopup('<b>Senterpunkt</b><br>61&#176;01\'55.9"N 7&#176;18\'31.6"E');
+    }).addTo(map).bindPopup('<b>Senterpunkt</b><br>61&deg;01\'55.9"N 7&deg;18\'31.6"E');
 
-    // === CANVAS ===
-    const canvas = document.getElementById('windCanvas');
-    const ctx = canvas.getContext('2d');
+    // === CANVASES ===
+    const windCanvas = document.getElementById('windCanvas');
+    const windCtx = windCanvas.getContext('2d');
+    const overlayCanvas = document.getElementById('overlayCanvas');
+    const overlayCtx = overlayCanvas.getContext('2d');
     let particles = [];
 
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    function resizeCanvases() {
+        windCanvas.width = window.innerWidth;
+        windCanvas.height = window.innerHeight;
+        overlayCanvas.width = window.innerWidth;
+        overlayCanvas.height = window.innerHeight;
     }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    window.addEventListener('resize', resizeCanvases);
+    resizeCanvases();
 
-    // === WIND GRID INTERPOLATION ===
-    // Bilinear interpolation to get wind at any lat/lng from the grid
-    function getWindAtLatLng(lat, lng, date, hour) {
-        const grid = windGrid[date];
+    // === GRID INTERPOLATION ===
+    function getDataAtLatLng(lat, lng, date, hour) {
+        const grid = weatherGrid[date];
         if (!grid || !grid[hour]) return null;
         const data = grid[hour];
 
-        // Find grid cell containing this point
         const latStep = gridLats.length > 1 ? gridLats[1] - gridLats[0] : 1;
         const lngStep = gridLngs.length > 1 ? gridLngs[1] - gridLngs[0] : 1;
 
-        // Fractional grid indices
         const fi = (lat - gridLats[0]) / latStep;
         const fj = (lng - gridLngs[0]) / lngStep;
 
-        // Clamp to grid bounds
         const i0 = Math.max(0, Math.min(gridLats.length - 2, Math.floor(fi)));
         const j0 = Math.max(0, Math.min(gridLngs.length - 2, Math.floor(fj)));
         const i1 = i0 + 1;
         const j1 = j0 + 1;
 
-        // Interpolation weights
         const ti = Math.max(0, Math.min(1, fi - i0));
         const tj = Math.max(0, Math.min(1, fj - j0));
 
-        // Bilinear interpolation for direction (using vector decomposition to handle wrapping)
+        // Bilinear interpolation helper
+        function bilerp(arr) {
+            return arr[i0][j0]*(1-ti)*(1-tj) + arr[i0][j1]*(1-ti)*tj + arr[i1][j0]*ti*(1-tj) + arr[i1][j1]*ti*tj;
+        }
+
+        // Wind direction: vector interpolation
+        const toRad = d => d * Math.PI / 180;
         const d00 = data.dirs[i0][j0], d01 = data.dirs[i0][j1];
         const d10 = data.dirs[i1][j0], d11 = data.dirs[i1][j1];
-
-        // Convert directions to unit vectors for proper interpolation
-        const toRad = d => d * Math.PI / 180;
-        const sx00 = Math.sin(toRad(d00)), sy00 = Math.cos(toRad(d00));
-        const sx01 = Math.sin(toRad(d01)), sy01 = Math.cos(toRad(d01));
-        const sx10 = Math.sin(toRad(d10)), sy10 = Math.cos(toRad(d10));
-        const sx11 = Math.sin(toRad(d11)), sy11 = Math.cos(toRad(d11));
-
-        const ix = sx00*(1-ti)*(1-tj) + sx01*(1-ti)*tj + sx10*ti*(1-tj) + sx11*ti*tj;
-        const iy = sy00*(1-ti)*(1-tj) + sy01*(1-ti)*tj + sy10*ti*(1-tj) + sy11*ti*tj;
+        const ix = Math.sin(toRad(d00))*(1-ti)*(1-tj) + Math.sin(toRad(d01))*(1-ti)*tj + Math.sin(toRad(d10))*ti*(1-tj) + Math.sin(toRad(d11))*ti*tj;
+        const iy = Math.cos(toRad(d00))*(1-ti)*(1-tj) + Math.cos(toRad(d01))*(1-ti)*tj + Math.cos(toRad(d10))*ti*(1-tj) + Math.cos(toRad(d11))*ti*tj;
         let dir = Math.atan2(ix, iy) * 180 / Math.PI;
         if (dir < 0) dir += 360;
 
-        // Bilinear interpolation for speed and gust
-        const s00 = data.speeds[i0][j0], s01 = data.speeds[i0][j1];
-        const s10 = data.speeds[i1][j0], s11 = data.speeds[i1][j1];
-        const speed = s00*(1-ti)*(1-tj) + s01*(1-ti)*tj + s10*ti*(1-tj) + s11*ti*tj;
+        // Weather code: nearest neighbor (not interpolatable)
+        const ni = ti < 0.5 ? i0 : i1;
+        const nj = tj < 0.5 ? j0 : j1;
 
-        const g00 = data.gusts[i0][j0], g01 = data.gusts[i0][j1];
-        const g10 = data.gusts[i1][j0], g11 = data.gusts[i1][j1];
-        const gust = g00*(1-ti)*(1-tj) + g01*(1-ti)*tj + g10*ti*(1-tj) + g11*ti*tj;
-
-        return { dir, speed, gust };
+        return {
+            dir: dir,
+            speed: bilerp(data.speeds),
+            gust: bilerp(data.gusts),
+            temp: bilerp(data.temps),
+            feelslike: bilerp(data.feelslike),
+            precip: bilerp(data.precip),
+            precipProb: bilerp(data.precipProb),
+            snowfall: bilerp(data.snowfall),
+            weatherCode: data.weatherCode[ni][nj]
+        };
     }
 
-    // Convert screen pixel to lat/lng
     function screenToLatLng(x, y) {
         const point = map.containerPointToLatLng([x, y]);
         return { lat: point.lat, lng: point.lng };
     }
 
-    // === PARTICLE SYSTEM ===
-    class WindParticle {
-        constructor() { this.reset(true); }
-
-        reset(randomAge = false) {
-            this.x = Math.random() * canvas.width;
-            this.y = Math.random() * canvas.height;
-            this.maxAge = 60 + Math.random() * 80;
-            this.age = randomAge ? Math.random() * this.maxAge * 0.5 : 0;
-            this.history = [];
-            this.lastSpeed = 0;
-        }
-
-        update() {
-            if (this.age >= this.maxAge) { this.reset(); return; }
-            this.age++;
-
-            // Get wind at this particle's geographic position
-            const pos = screenToLatLng(this.x, this.y);
-            const wind = getWindAtLatLng(pos.lat, pos.lng, selectedDate, currentHour);
-            if (!wind) return;
-
-            this.lastSpeed = wind.speed;
-
-            // Wind direction: meteorological (where FROM) -> convert to where it blows TO
-            const toRad = (wind.dir + 180) % 360 * Math.PI / 180;
-            const speedFactor = Math.max(0.5, wind.speed * 0.35);
-            const turbulence = (Math.random() - 0.5) * 0.8;
-
-            const vx = Math.sin(toRad) * speedFactor + turbulence;
-            const vy = -Math.cos(toRad) * speedFactor + turbulence;
-
-            this.history.push({ x: this.x, y: this.y });
-            if (this.history.length > 14) this.history.shift();
-
-            this.x += vx;
-            this.y += vy;
-
-            if (this.x < -10 || this.x > canvas.width + 10 ||
-                this.y < -10 || this.y > canvas.height + 10) {
-                this.reset();
-            }
-        }
-
-        draw(ctx) {
-            if (this.history.length < 2) return;
-            const lifeRatio = 1 - this.age / this.maxAge;
-            const baseAlpha = Math.min(1, lifeRatio * 1.2);
-            const color = speedColor(this.lastSpeed);
-            const totalPts = this.history.length;
-
-            // Draw trail segments with increasing opacity and width
-            for (let i = 1; i < totalPts; i++) {
-                const segAlpha = baseAlpha * (0.3 + 0.7 * (i / totalPts));
-                ctx.beginPath();
-                ctx.moveTo(this.history[i-1].x, this.history[i-1].y);
-                ctx.lineTo(this.history[i].x, this.history[i].y);
-                ctx.strokeStyle = color.replace(')', ',' + segAlpha + ')').replace('rgb', 'rgba');
-                ctx.lineWidth = 1 + (i / totalPts) * (1.5 + this.lastSpeed * 0.12);
-                ctx.lineCap = 'round';
-                ctx.stroke();
-            }
-            // Leading edge segment
-            if (totalPts > 0) {
-                const last = this.history[totalPts - 1];
-                ctx.beginPath();
-                ctx.moveTo(last.x, last.y);
-                ctx.lineTo(this.x, this.y);
-                ctx.strokeStyle = color.replace(')', ',' + (baseAlpha * 0.9) + ')').replace('rgb', 'rgba');
-                ctx.lineWidth = 2 + this.lastSpeed * 0.12;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-            }
-            // Head dot
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, 2 + this.lastSpeed * 0.1, 0, Math.PI * 2);
-            ctx.fillStyle = color.replace(')', ',' + Math.min(1, baseAlpha * 1.1) + ')').replace('rgb', 'rgba');
-            ctx.fill();
-        }
+    // === WMO WEATHER CODE HELPERS ===
+    function wmoToEmoji(code) {
+        if (code === 0) return '\u2600\uFE0F'; // Clear sky
+        if (code <= 3) return '\u26C5'; // Partly cloudy
+        if (code === 45 || code === 48) return '\uD83C\uDF2B\uFE0F'; // Fog
+        if (code >= 51 && code <= 55) return '\uD83C\uDF26\uFE0F'; // Drizzle
+        if (code >= 56 && code <= 57) return '\u2744\uFE0F\uD83C\uDF27\uFE0F'; // Freezing drizzle
+        if (code >= 61 && code <= 65) return '\uD83C\uDF27\uFE0F'; // Rain
+        if (code >= 66 && code <= 67) return '\u2744\uFE0F\uD83C\uDF27\uFE0F'; // Freezing rain
+        if (code >= 71 && code <= 77) return '\uD83C\uDF28\uFE0F'; // Snow
+        if (code >= 80 && code <= 82) return '\uD83C\uDF26\uFE0F'; // Rain showers
+        if (code >= 85 && code <= 86) return '\uD83C\uDF28\uFE0F'; // Snow showers
+        if (code === 95) return '\u26C8\uFE0F'; // Thunderstorm
+        if (code >= 96) return '\u26C8\uFE0F\uD83E\uDEA8'; // Thunderstorm + hail
+        return '\u2601\uFE0F';
     }
 
+    function wmoToDesc(code) {
+        if (code === 0) return 'Klar himmel';
+        if (code === 1) return 'Stort sett klart';
+        if (code === 2) return 'Delvis skyet';
+        if (code === 3) return 'Overskyet';
+        if (code === 45) return 'T\u00e5ke';
+        if (code === 48) return 'Rimfrost-t\u00e5ke';
+        if (code >= 51 && code <= 53) return 'Yr';
+        if (code >= 55 && code <= 57) return 'Yr (kraftig)';
+        if (code >= 56 && code <= 57) return 'Underkj\u00f8lt yr';
+        if (code === 61) return 'Lett regn';
+        if (code === 63) return 'Moderat regn';
+        if (code === 65) return 'Kraftig regn';
+        if (code >= 66 && code <= 67) return 'Underkj\u00f8lt regn';
+        if (code === 71) return 'Lett sn\u00f8fall';
+        if (code === 73) return 'Moderat sn\u00f8fall';
+        if (code === 75) return 'Kraftig sn\u00f8fall';
+        if (code === 77) return 'Sn\u00f8korn';
+        if (code >= 80 && code <= 82) return 'Regnbyger';
+        if (code >= 85 && code <= 86) return 'Sn\u00f8byger';
+        if (code === 95) return 'Tordenv\u00e6r';
+        if (code >= 96) return 'Tordenv\u00e6r med hagl';
+        return 'Ukjent';
+    }
+
+    // === COLOR HELPERS ===
     function speedColor(speed) {
         if (speed < 2) return 'rgb(74, 158, 190)';
         if (speed < 5) return 'rgb(100, 200, 220)';
@@ -443,6 +531,113 @@
         return '#8e44ad';
     }
 
+    function tempColor(temp) {
+        if (temp < -10) return 'rgb(59, 72, 217)';
+        if (temp < -5) return 'rgb(70, 120, 200)';
+        if (temp < 0) return 'rgb(74, 158, 190)';
+        if (temp < 5) return 'rgb(60, 180, 170)';
+        if (temp < 10) return 'rgb(46, 204, 113)';
+        if (temp < 15) return 'rgb(180, 210, 50)';
+        if (temp < 20) return 'rgb(241, 196, 15)';
+        if (temp < 25) return 'rgb(230, 126, 34)';
+        if (temp < 30) return 'rgb(231, 76, 60)';
+        return 'rgb(180, 40, 40)';
+    }
+
+    function precipColor(mm) {
+        if (mm < 0.1) return 'rgba(44, 62, 80, 0.3)';
+        if (mm < 1) return 'rgba(52, 152, 219, 0.7)';
+        if (mm < 5) return 'rgba(41, 128, 185, 0.85)';
+        return 'rgba(142, 68, 173, 0.95)';
+    }
+
+    function weatherCodeColor(code) {
+        if (code === 0) return 'rgba(243, 156, 18, 0.8)';
+        if (code <= 3) return 'rgba(149, 165, 166, 0.7)';
+        if (code === 45 || code === 48) return 'rgba(189, 195, 199, 0.6)';
+        if (code >= 51 && code <= 67) return 'rgba(52, 152, 219, 0.8)';
+        if (code >= 71 && code <= 77) return 'rgba(236, 240, 241, 0.8)';
+        if (code >= 80 && code <= 86) return 'rgba(52, 152, 219, 0.8)';
+        if (code >= 95) return 'rgba(155, 89, 182, 0.9)';
+        return 'rgba(149, 165, 166, 0.5)';
+    }
+
+    // === PARTICLE SYSTEM ===
+    class WindParticle {
+        constructor() { this.reset(true); }
+
+        reset(randomAge = false) {
+            this.x = Math.random() * windCanvas.width;
+            this.y = Math.random() * windCanvas.height;
+            this.maxAge = 60 + Math.random() * 80;
+            this.age = randomAge ? Math.random() * this.maxAge * 0.5 : 0;
+            this.history = [];
+            this.lastSpeed = 0;
+        }
+
+        update() {
+            if (this.age >= this.maxAge) { this.reset(); return; }
+            this.age++;
+
+            const pos = screenToLatLng(this.x, this.y);
+            const data = getDataAtLatLng(pos.lat, pos.lng, selectedDate, currentHour);
+            if (!data) return;
+
+            this.lastSpeed = data.speed;
+
+            const toRad = (data.dir + 180) % 360 * Math.PI / 180;
+            const speedFactor = Math.max(0.5, data.speed * 0.35);
+            const turbulence = (Math.random() - 0.5) * 0.8;
+
+            const vx = Math.sin(toRad) * speedFactor + turbulence;
+            const vy = -Math.cos(toRad) * speedFactor + turbulence;
+
+            this.history.push({ x: this.x, y: this.y });
+            if (this.history.length > 14) this.history.shift();
+
+            this.x += vx;
+            this.y += vy;
+
+            if (this.x < -10 || this.x > windCanvas.width + 10 ||
+                this.y < -10 || this.y > windCanvas.height + 10) {
+                this.reset();
+            }
+        }
+
+        draw(ctx) {
+            if (this.history.length < 2) return;
+            const lifeRatio = 1 - this.age / this.maxAge;
+            const baseAlpha = Math.min(1, lifeRatio * 1.2);
+            const color = speedColor(this.lastSpeed);
+            const totalPts = this.history.length;
+
+            for (let i = 1; i < totalPts; i++) {
+                const segAlpha = baseAlpha * (0.3 + 0.7 * (i / totalPts));
+                ctx.beginPath();
+                ctx.moveTo(this.history[i-1].x, this.history[i-1].y);
+                ctx.lineTo(this.history[i].x, this.history[i].y);
+                ctx.strokeStyle = color.replace(')', ',' + segAlpha + ')').replace('rgb', 'rgba');
+                ctx.lineWidth = 1 + (i / totalPts) * (1.5 + this.lastSpeed * 0.12);
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+            if (totalPts > 0) {
+                const last = this.history[totalPts - 1];
+                ctx.beginPath();
+                ctx.moveTo(last.x, last.y);
+                ctx.lineTo(this.x, this.y);
+                ctx.strokeStyle = color.replace(')', ',' + (baseAlpha * 0.9) + ')').replace('rgb', 'rgba');
+                ctx.lineWidth = 2 + this.lastSpeed * 0.12;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 2 + this.lastSpeed * 0.1, 0, Math.PI * 2);
+            ctx.fillStyle = color.replace(')', ',' + Math.min(1, baseAlpha * 1.1) + ')').replace('rgb', 'rgba');
+            ctx.fill();
+        }
+    }
+
     function initParticles() {
         particles = [];
         for (let i = 0; i < particleCount; i++) {
@@ -450,25 +645,150 @@
         }
     }
 
+    // === OVERLAY RENDERING ===
+    function drawOverlay() {
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        if (activeTab === 'wind') return; // Wind uses particle system only
+        if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) return;
+
+        // Draw 4x4 grid of points (less dense than wind)
+        const overlayGridSize = 4;
+        const padX = overlayCanvas.width * 0.08;
+        const padY = overlayCanvas.height * 0.08;
+        const stepX = (overlayCanvas.width - 2 * padX) / (overlayGridSize - 1);
+        const stepY = (overlayCanvas.height - 2 * padY) / (overlayGridSize - 1);
+
+        for (let gy = 0; gy < overlayGridSize; gy++) {
+            for (let gx = 0; gx < overlayGridSize; gx++) {
+                const sx = padX + gx * stepX;
+                const sy = padY + gy * stepY;
+                const pos = screenToLatLng(sx, sy);
+                const data = getDataAtLatLng(pos.lat, pos.lng, selectedDate, currentHour);
+                if (!data) continue;
+
+                if (activeTab === 'temp') {
+                    drawTempPoint(overlayCtx, sx, sy, data.temp);
+                } else if (activeTab === 'precip') {
+                    drawPrecipPoint(overlayCtx, sx, sy, data.precip, data.snowfall);
+                } else if (activeTab === 'weather') {
+                    drawWeatherPoint(overlayCtx, sx, sy, data.weatherCode);
+                }
+            }
+        }
+    }
+
+    function drawTempPoint(ctx, x, y, temp) {
+        const color = tempColor(temp);
+        // Outer glow
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 32);
+        gradient.addColorStop(0, color.replace('rgb', 'rgba').replace(')', ', 0.35)'));
+        gradient.addColorStop(1, color.replace('rgb', 'rgba').replace(')', ', 0)'));
+        ctx.beginPath();
+        ctx.arc(x, y, 32, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Inner circle
+        ctx.beginPath();
+        ctx.arc(x, y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.85)');
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Temperature text
+        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(Math.round(temp) + '\u00b0', x, y);
+    }
+
+    function drawPrecipPoint(ctx, x, y, precip, snowfall) {
+        const color = precipColor(precip);
+        const isSnow = snowfall > 0.1;
+        const radius = Math.min(26, 8 + precip * 3);
+
+        // Outer glow
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius + 16);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.beginPath();
+        ctx.arc(x, y, radius + 16, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Inner circle
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = isSnow ? 'rgba(255,255,255,0.5)' : 'rgba(100,180,255,0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Text
+        ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (precip < 0.1) {
+            ctx.fillText('-', x, y);
+        } else {
+            ctx.fillText(precip.toFixed(1), x, y - 4);
+            ctx.font = '8px -apple-system, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.fillText(isSnow ? 'mm sn\u00f8' : 'mm', x, y + 7);
+        }
+    }
+
+    function drawWeatherPoint(ctx, x, y, code) {
+        const color = weatherCodeColor(code);
+        const emoji = wmoToEmoji(code);
+
+        // Background circle
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 30);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.beginPath();
+        ctx.arc(x, y, 30, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Emoji icon
+        ctx.font = '24px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, x, y);
+    }
+
+    // === ANIMATION LOOP ===
     function animate() {
-        if (!animationEnabled) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (activeTab !== 'wind' || !animationEnabled) {
+            windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
+            if (activeTab === 'wind' && !animationEnabled) return;
+            if (activeTab !== 'wind') {
+                animFrameId = requestAnimationFrame(animate);
+                return;
+            }
             return;
         }
 
-        if (!windGrid[selectedDate] || !windGrid[selectedDate][currentHour]) {
+        if (!weatherGrid[selectedDate] || !weatherGrid[selectedDate][currentHour]) {
             animFrameId = requestAnimationFrame(animate);
             return;
         }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
 
         while (particles.length < particleCount) particles.push(new WindParticle());
         while (particles.length > particleCount) particles.pop();
 
         for (const p of particles) {
             p.update();
-            p.draw(ctx);
+            p.draw(windCtx);
         }
 
         animFrameId = requestAnimationFrame(animate);
@@ -477,7 +797,7 @@
     // === GRID API ===
     function getMapGridBounds() {
         const bounds = map.getBounds();
-        const pad = 0.15; // 15% padding so particles near edges still have data
+        const pad = 0.15;
         const latRange = bounds.getNorth() - bounds.getSouth();
         const lngRange = bounds.getEast() - bounds.getWest();
         return {
@@ -488,18 +808,17 @@
         };
     }
 
-    async function fetchWindGrid() {
+    async function fetchWeatherGrid() {
         if (isLoadingGrid) return;
         isLoadingGrid = true;
 
         const statusEl = document.getElementById('gridStatus');
-        statusEl.textContent = 'Henter vindrutenett...';
+        statusEl.textContent = 'Henter v\u00e6rrutenett...';
         statusEl.classList.add('loading');
 
         const b = getMapGridBounds();
         gridBounds = b;
 
-        // Build grid of lat/lng points
         const lats = [];
         const lngs = [];
         for (let i = 0; i < GRID_SIZE; i++) {
@@ -509,7 +828,6 @@
         gridLats = lats;
         gridLngs = lngs;
 
-        // Build flat arrays of all grid point coordinates
         const flatLats = [];
         const flatLngs = [];
         for (let i = 0; i < GRID_SIZE; i++) {
@@ -525,7 +843,7 @@
         const url = 'https://api.open-meteo.com/v1/forecast?' +
             'latitude=' + latStr +
             '&longitude=' + lngStr +
-            '&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
+            '&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,apparent_temperature,precipitation,precipitation_probability,snowfall,weather_code' +
             '&forecast_days=' + FORECAST_DAYS +
             '&timezone=Europe%2FOslo&wind_speed_unit=ms';
 
@@ -534,13 +852,9 @@
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const json = await res.json();
 
-            // json is an array of results, one per grid point
             const results = Array.isArray(json) ? json : [json];
-
-            // Parse into windGrid structure
             const newGrid = {};
 
-            // Get dates from first result
             const times = results[0].hourly.time;
             const newDates = [];
             for (let t = 0; t < times.length; t++) {
@@ -548,38 +862,48 @@
                 if (!newDates.includes(dt)) newDates.push(dt);
             }
 
-            // Initialize grid structure
             for (const dt of newDates) {
                 newGrid[dt] = {};
                 for (let h = 0; h < 24; h++) {
                     newGrid[dt][h] = {
                         dirs: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
                         speeds: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
-                        gusts: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0))
+                        gusts: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
+                        temps: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
+                        feelslike: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
+                        precip: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
+                        precipProb: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
+                        snowfall: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0)),
+                        weatherCode: Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(0))
                     };
                 }
             }
 
-            // Fill in data from each grid point
             for (let idx = 0; idx < results.length; idx++) {
-                const i = Math.floor(idx / GRID_SIZE); // lat index
-                const j = idx % GRID_SIZE;              // lng index
+                const i = Math.floor(idx / GRID_SIZE);
+                const j = idx % GRID_SIZE;
                 const h = results[idx].hourly;
 
                 for (let t = 0; t < h.time.length; t++) {
                     const dt = h.time[t].substring(0, 10);
                     const hour = parseInt(h.time[t].substring(11, 13));
                     if (newGrid[dt] && newGrid[dt][hour]) {
-                        newGrid[dt][hour].dirs[i][j] = h.wind_direction_10m[t] || 0;
-                        newGrid[dt][hour].speeds[i][j] = h.wind_speed_10m[t] || 0;
-                        newGrid[dt][hour].gusts[i][j] = h.wind_gusts_10m[t] || 0;
+                        const cell = newGrid[dt][hour];
+                        cell.dirs[i][j] = h.wind_direction_10m[t] || 0;
+                        cell.speeds[i][j] = h.wind_speed_10m[t] || 0;
+                        cell.gusts[i][j] = h.wind_gusts_10m[t] || 0;
+                        cell.temps[i][j] = h.temperature_2m[t] !== undefined ? h.temperature_2m[t] : 0;
+                        cell.feelslike[i][j] = h.apparent_temperature[t] !== undefined ? h.apparent_temperature[t] : 0;
+                        cell.precip[i][j] = h.precipitation[t] || 0;
+                        cell.precipProb[i][j] = h.precipitation_probability[t] || 0;
+                        cell.snowfall[i][j] = h.snowfall[t] || 0;
+                        cell.weatherCode[i][j] = h.weather_code[t] || 0;
                     }
                 }
             }
 
-            windGrid = newGrid;
+            weatherGrid = newGrid;
 
-            // Update dates if first load
             if (dates.length === 0) {
                 dates = newDates.sort();
                 selectedDate = dates.length > 1 ? dates[1] : dates[0];
@@ -587,9 +911,10 @@
             }
 
             updateDisplay();
+            drawOverlay();
 
             const pointCount = GRID_SIZE * GRID_SIZE;
-            statusEl.textContent = 'Vindrutenett: ' + pointCount + ' punkter';
+            statusEl.textContent = 'V\u00e6rrutenett: ' + pointCount + ' punkter';
             statusEl.classList.remove('loading');
 
         } catch (e) {
@@ -600,9 +925,10 @@
         isLoadingGrid = false;
     }
 
-    // Clear canvas on map move
+    // Clear canvases on map move
     map.on('movestart zoomstart', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         particles.forEach(p => p.history = []);
     });
 
@@ -610,7 +936,7 @@
     map.on('moveend zoomend', () => {
         clearTimeout(fetchDebounceTimer);
         fetchDebounceTimer = setTimeout(() => {
-            fetchWindGrid();
+            fetchWeatherGrid();
             updateLocationSubtitle();
         }, 600);
     });
@@ -633,19 +959,20 @@
         spinner.style.display = 'block';
         errorText.style.display = 'none';
         retryBtn.style.display = 'none';
-        loadingText.textContent = 'Henter vindrutenett (' + (GRID_SIZE*GRID_SIZE) + ' punkter)...';
+        loadingText.textContent = 'Henter v\u00e6rdata (' + (GRID_SIZE*GRID_SIZE) + ' punkter)...';
 
         try {
-            await fetchWindGrid();
+            await fetchWeatherGrid();
             loading.style.display = 'none';
             updateLocationSubtitle();
             updateDisplay();
+            drawOverlay();
             initParticles();
             animate();
             autoCollapseOnMobile();
         } catch (e) {
             spinner.style.display = 'none';
-            loadingText.textContent = 'Kunne ikke hente vinddata';
+            loadingText.textContent = 'Kunne ikke hente v\u00e6rdata';
             errorText.style.display = 'block';
             errorText.textContent = e.message;
             retryBtn.style.display = 'inline-block';
@@ -671,8 +998,9 @@
                 document.querySelectorAll('.date-btn').forEach(function(b) { b.classList.remove('active'); });
                 btn.classList.add('active');
                 updateDisplay();
+                drawOverlay();
                 particles.forEach(function(p) { p.history = []; p.age = 0; });
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
             };
             row.appendChild(btn);
         });
@@ -700,34 +1028,91 @@
         return { level: 12, name: 'Orkan' };
     }
 
-    // === DISPLAY (shows center-point wind) ===
+    // === DISPLAY ===
     function updateDisplay() {
         const center = map.getCenter();
-        const wind = getWindAtLatLng(center.lat, center.lng, selectedDate, currentHour);
-        if (!wind) return;
-
-        var dir = wind.dir, speed = wind.speed, gust = wind.gust;
-        var bf = beaufortScale(speed);
+        const data = getDataAtLatLng(center.lat, center.lng, selectedDate, currentHour);
+        if (!data) return;
 
         document.getElementById('timeDisplay').textContent = String(currentHour).padStart(2,'0') + ':00';
-        document.getElementById('wDir').textContent = Math.round(dir) + '\u00b0';
-        document.getElementById('wSpeed').textContent = speed.toFixed(1) + ' m/s';
-        document.getElementById('wGust').textContent = gust.toFixed(1) + ' m/s';
-        document.getElementById('wFrom').textContent = directionName(dir);
 
+        // Wind info
+        var bf = beaufortScale(data.speed);
+        document.getElementById('wDir').textContent = Math.round(data.dir) + '\u00b0';
+        document.getElementById('wSpeed').textContent = data.speed.toFixed(1) + ' m/s';
+        document.getElementById('wGust').textContent = data.gust.toFixed(1) + ' m/s';
+        document.getElementById('wFrom').textContent = directionName(data.dir);
         var pct = Math.min(100, (bf.level / 12) * 100);
         var fill = document.getElementById('beaufortFill');
         fill.style.width = pct + '%';
-        fill.style.background = windColorHex(speed);
+        fill.style.background = windColorHex(data.speed);
         document.getElementById('beaufortLabel').textContent = 'Beaufort ' + bf.level + ' \u2014 ' + bf.name;
+
+        // Temperature info
+        document.getElementById('tTemp').textContent = data.temp.toFixed(1) + '\u00b0C';
+        document.getElementById('tFeels').textContent = data.feelslike.toFixed(1) + '\u00b0C';
+
+        // Precipitation info
+        document.getElementById('pAmount').textContent = data.precip.toFixed(1) + ' mm';
+        document.getElementById('pProb').textContent = Math.round(data.precipProb) + '%';
+        document.getElementById('pSnow').textContent = data.snowfall.toFixed(1) + ' cm';
+        document.getElementById('pType').textContent = data.snowfall > 0.1 ? 'Sn\u00f8' : (data.precip > 0.1 ? 'Regn' : 'Ingen');
+
+        // Weather info
+        document.getElementById('wxIcon').textContent = wmoToEmoji(data.weatherCode);
+        document.getElementById('wxDesc').textContent = wmoToDesc(data.weatherCode);
+        document.getElementById('wxCode').textContent = data.weatherCode;
+        document.getElementById('wxTemp').textContent = data.temp.toFixed(1) + '\u00b0C';
+        document.getElementById('wxWind').textContent = data.speed.toFixed(1) + ' m/s ' + directionName(data.dir);
+        document.getElementById('wxPrecip').textContent = data.precip.toFixed(1) + ' mm';
     }
+
+    // === TAB SWITCHING ===
+    function switchTab(tab) {
+        activeTab = tab;
+
+        // Update tab buttons
+        document.querySelectorAll('.layer-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('.layer-tab[data-tab="' + tab + '"]').classList.add('active');
+
+        // Update tab content panels
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+
+        // Update legends
+        document.getElementById('legend-wind').style.display = tab === 'wind' ? '' : 'none';
+        document.getElementById('legend-temp').style.display = tab === 'temp' ? '' : 'none';
+        document.getElementById('legend-precip').style.display = tab === 'precip' ? '' : 'none';
+        document.getElementById('legend-weather').style.display = tab === 'weather' ? '' : 'none';
+
+        // Handle wind canvas
+        if (tab === 'wind') {
+            windCanvas.style.display = '';
+            if (animationEnabled) {
+                initParticles();
+                if (animFrameId) cancelAnimationFrame(animFrameId);
+                animate();
+            }
+        } else {
+            windCanvas.style.display = 'none';
+            windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
+        }
+
+        // Draw overlay for non-wind tabs
+        drawOverlay();
+    }
+
+    document.querySelectorAll('.layer-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
 
     // === EVENTS ===
     document.getElementById('timeSlider').addEventListener('input', function(e) {
         currentHour = parseInt(e.target.value);
         updateDisplay();
+        drawOverlay();
         particles.forEach(function(p) { p.history = []; });
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
     });
 
     document.getElementById('densitySlider').addEventListener('input', function(e) {
@@ -743,7 +1128,7 @@
             animate();
         } else {
             if (animFrameId) cancelAnimationFrame(animFrameId);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            windCtx.clearRect(0, 0, windCanvas.width, windCanvas.height);
         }
     });
 
