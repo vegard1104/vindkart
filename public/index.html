@@ -227,10 +227,20 @@
 
         .topptur-card {
             background: rgba(126,200,227,0.04); border: 1px solid rgba(126,200,227,0.1);
-            border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
-            transition: all 0.2s; position: relative;
+            border-radius: 12px; margin-bottom: 8px; cursor: pointer;
+            transition: all 0.2s; position: relative; overflow: hidden;
         }
         .topptur-card:hover { background: rgba(126,200,227,0.1); border-color: rgba(126,200,227,0.25); transform: translateY(-1px); }
+        .topptur-card .tt-img {
+            width: 100%; height: 90px; object-fit: cover; display: block;
+            border-bottom: 1px solid rgba(126,200,227,0.08);
+        }
+        .topptur-card .tt-img-placeholder {
+            width: 100%; height: 90px; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, rgba(126,200,227,0.08), rgba(126,200,227,0.02));
+            font-size: 28px; border-bottom: 1px solid rgba(126,200,227,0.08);
+        }
+        .topptur-card .tt-body { padding: 10px 14px 12px; }
         .topptur-card .tt-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
         .topptur-card .tt-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
         .topptur-card .tt-title { font-size: 14px; font-weight: 700; color: #e0e0e0; line-height: 1.3; }
@@ -273,7 +283,28 @@
             background: rgba(126,200,227,0.03); border-radius: 8px; padding: 10px 12px;
             border: 1px solid rgba(126,200,227,0.06);
         }
+        .tt-detail-img {
+            width: 100%; height: 140px; object-fit: cover; border-radius: 10px;
+            margin-bottom: 12px; border: 1px solid rgba(126,200,227,0.1);
+        }
         .tt-detail-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* GPS location marker */
+        .gps-arrow {
+            width: 22px; height: 22px; transform-origin: center center;
+        }
+        .gps-arrow-inner {
+            width: 0; height: 0;
+            border-left: 8px solid transparent; border-right: 8px solid transparent;
+            border-bottom: 22px solid #4285f4;
+            filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
+        }
+        .gps-pulse {
+            position: absolute; top: -8px; left: -8px; width: 38px; height: 38px;
+            border-radius: 50%; background: rgba(66,133,244,0.15);
+            animation: gpsPulse 2s ease-out infinite;
+        }
+        @keyframes gpsPulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
 
         .loading-overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -530,8 +561,13 @@
                 <div class="hint">Klikk p&aring; kartet for &aring; legge til punkter p&aring; ruten</div>
             </div>
 
-            <!-- NVE layers (shared) -->
+            <!-- Map layers (shared) -->
             <div style="margin-top: 14px;">
+                <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">Kartlag</div>
+                <div class="layer-toggle">
+                    <div class="toggle-switch" id="toggleFriluftsruter"></div>
+                    <span>Tur- &amp; friluftsruter (Kartverket)</span>
+                </div>
                 <div class="layer-toggle">
                     <div class="toggle-switch" id="toggleSteepness"></div>
                     <span>Bratthetskart (NVE)</span>
@@ -653,9 +689,81 @@ L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/
     maxZoom: 18
 }).addTo(map);
 
-const centerMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
-    radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 0.9, weight: 2
-}).addTo(map).bindPopup('<b>Senterpunkt</b><br>61&deg;01\'55.9"N 7&deg;18\'31.6"E');
+// GPS Geolocation — replaces the red center dot
+let gpsMarker = null;
+let gpsAccuracyCircle = null;
+let gpsHeading = null;
+let gpsWatchId = null;
+
+function initGeolocation() {
+    if (!navigator.geolocation) {
+        console.warn('Geolocation not supported');
+        // Fallback: place a static marker at default pos
+        addFallbackMarker();
+        return;
+    }
+    gpsWatchId = navigator.geolocation.watchPosition(
+        function(pos) {
+            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+            const accuracy = pos.coords.accuracy;
+            gpsHeading = pos.coords.heading; // may be null
+
+            if (!gpsMarker) {
+                // Create GPS arrow marker
+                const arrowHtml = '<div style="position:relative;">' +
+                    '<div class="gps-pulse"></div>' +
+                    '<div class="gps-arrow" id="gpsArrow">' +
+                    '<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;">' +
+                    '<svg width="22" height="22" viewBox="0 0 24 24" fill="#4285f4" stroke="#fff" stroke-width="1.5">' +
+                    '<path d="M12 2 L4 20 L12 15 L20 20 Z"/></svg></div></div></div>';
+                gpsMarker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: '',
+                        html: arrowHtml,
+                        iconSize: [22, 22], iconAnchor: [11, 11]
+                    }),
+                    zIndexOffset: 1000
+                }).addTo(map).bindPopup('<b>Din posisjon</b><br>' + lat.toFixed(5) + '\u00b0N, ' + lng.toFixed(5) + '\u00b0E');
+
+                gpsAccuracyCircle = L.circle([lat, lng], {
+                    radius: accuracy, color: '#4285f4', fillColor: '#4285f4',
+                    fillOpacity: 0.08, weight: 1, opacity: 0.3
+                }).addTo(map);
+
+                // Only fly to GPS position on first fix
+                map.setView([lat, lng], map.getZoom());
+            } else {
+                gpsMarker.setLatLng([lat, lng]);
+                gpsMarker.setPopupContent('<b>Din posisjon</b><br>' + lat.toFixed(5) + '\u00b0N, ' + lng.toFixed(5) + '\u00b0E<br><span style="font-size:10px;color:#888;">N\u00f8yaktighet: \u00b1' + Math.round(accuracy) + ' m</span>');
+                gpsAccuracyCircle.setLatLng([lat, lng]);
+                gpsAccuracyCircle.setRadius(accuracy);
+            }
+
+            // Rotate arrow based on heading
+            if (gpsHeading !== null && gpsHeading !== undefined && !isNaN(gpsHeading)) {
+                const arrowEl = document.getElementById('gpsArrow');
+                if (arrowEl) arrowEl.style.transform = 'rotate(' + gpsHeading + 'deg)';
+            }
+        },
+        function(err) {
+            console.warn('Geolocation error:', err.message);
+            addFallbackMarker();
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+    );
+}
+
+function addFallbackMarker() {
+    if (!gpsMarker) {
+        gpsMarker = L.circleMarker([DEFAULT_LAT, DEFAULT_LNG], {
+            radius: 7, color: '#4285f4', fillColor: '#4285f4', fillOpacity: 0.9, weight: 2
+        }).addTo(map).bindPopup('<b>Standardposisjon</b><br>61\u00b001\'55.9"N 7\u00b018\'31.6"E<br><span style="font-size:10px;color:#888;">GPS ikke tilgjengelig</span>');
+    }
+}
+
+// Kartverket Friluftsruter WMS layer
+let friluftsruterLayer = null;
+let friluftsruterVisible = false;
 
 // =====================================================================
 // CANVASES
@@ -1260,6 +1368,7 @@ async function loadData() {
     try {
         await fetchWeatherGrid();
         loading.style.display='none'; updateLocationSubtitle(); updateDisplay(); drawOverlay(); initParticles(); animate(); autoCollapseOnMobile();
+        initGeolocation();
     } catch(e) {
         spinner.style.display='none'; loadingText.textContent='Kunne ikke hente v\u00e6rdata';
         errorText.style.display='block'; errorText.textContent=e.message; retryBtn.style.display='inline-block';
@@ -1353,9 +1462,10 @@ function switchMode(mode) {
         // Show relevant weather legend, hide tour legends
         ['wind','temp','precip','weather'].forEach(l => document.getElementById('legend-'+l).style.display = l===activeTab?'':'none');
         document.getElementById('legend-steepness').style.display = 'none';
-        // Hide NVE layers when in weather mode
+        // Hide NVE/Kartverket layers when in weather mode
         if (steepnessLayer && map.hasLayer(steepnessLayer)) map.removeLayer(steepnessLayer);
         if (avalancheLayer && map.hasLayer(avalancheLayer)) map.removeLayer(avalancheLayer);
+        if (friluftsruterLayer && map.hasLayer(friluftsruterLayer)) map.removeLayer(friluftsruterLayer);
         // Clear topptur route overlay
         if (typeof clearToppturRoute === 'function') clearToppturRoute();
         drawOverlay();
@@ -1369,9 +1479,10 @@ function switchMode(mode) {
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
         ['wind','temp','precip','weather'].forEach(l => document.getElementById('legend-'+l).style.display='none');
         document.getElementById('legend-steepness').style.display = steepnessVisible ? '' : 'none';
-        // Restore NVE layers if they were toggled on
+        // Restore NVE/Kartverket layers if they were toggled on
         if (steepnessVisible && steepnessLayer && !map.hasLayer(steepnessLayer)) steepnessLayer.addTo(map);
         if (avalancheVisible && avalancheLayer && !map.hasLayer(avalancheLayer)) avalancheLayer.addTo(map);
+        if (friluftsruterVisible && friluftsruterLayer && !map.hasLayer(friluftsruterLayer)) friluftsruterLayer.addTo(map);
         document.getElementById('avalancheInfo').style.display = avalancheVisible ? '' : 'none';
         updateTourStats();
     }
@@ -1411,111 +1522,123 @@ document.getElementById('particleToggle').addEventListener('click', function() {
 // =====================================================================
 const toppturer = [
     {
-        id: 1, name: 'Bl\u00e5fjellet', altitude: 1397, area: 'Balestrand, Sogn',
+        id: 1, name: 'Bl\u00e5fjellet', altitude: 1397, area: 'Sogndal, Sogn',
         distance: 8.5, elevationGain: 1100, difficulty: 'middels',
         season: 'Feb\u2013Mai', aspect: 'N/N\u00d8',
-        lat: 61.2035, lng: 6.5281,
-        route: [[61.1880,6.5350],[61.1920,6.5330],[61.1960,6.5310],[61.1990,6.5290],[61.2010,6.5280],[61.2035,6.5281]],
-        description: 'Popul\u00e6r topptur med flott utsikt over Sognefjorden. Ruten g\u00e5r fra Dragsvik og f\u00f8lger ryggen oppover. Fine forhold p\u00e5 sein vinter og v\u00e5r. Moderat bratt med noen brattere partier mot toppen.',
-        tips: 'Parker ved Dragsvik ferjekai. F\u00f8lg stien mot Storehaugen f\u00f8r du tar av mot Bl\u00e5fjellet.'
+        lat: 61.2015, lng: 7.0380,
+        img: 'https://images.unsplash.com/photo-1520962880247-cfaf541c8724?w=400&h=200&fit=crop',
+        route: [[61.2260,7.0710],[61.2210,7.0620],[61.2160,7.0550],[61.2100,7.0470],[61.2050,7.0410],[61.2015,7.0380]],
+        description: 'Popul\u00e6r topptur vest for Sogndalsdalen med flott utsikt mot indre Sogn, Hurrungane og Bleia. Ruten g\u00e5r fra Hodlekve skisenter og f\u00f8lger ryggen vestover. Fine forhold sein vinter/v\u00e5r.',
+        tips: 'Parker ved Hodlekve skisenter. F\u00f8lg preparert l\u00f8ype f\u00f8r du tar av mot ryggen vestover.'
     },
     {
         id: 2, name: 'Sk\u00f8rsn\u00f8se', altitude: 1453, area: 'L\u00e6rdal / Aurland, Sogn',
         distance: 10, elevationGain: 1200, difficulty: 'krevende',
         season: 'Mar\u2013Mai', aspect: 'N\u00d8',
-        lat: 61.0250, lng: 7.5200,
-        route: [[61.0100,7.5400],[61.0140,7.5350],[61.0180,7.5300],[61.0210,7.5260],[61.0250,7.5200]],
-        description: 'Krevende topptur i Aurland med spektakul\u00e6r utsikt over fjordlandskapet. Bratte partier krever god kondisjon og erfaring. Fantastisk nedkj\u00f8ring p\u00e5 v\u00e5ren.',
+        lat: 61.0870, lng: 7.5890,
+        img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&h=200&fit=crop',
+        route: [[61.0640,7.6200],[61.0700,7.6100],[61.0740,7.6020],[61.0790,7.5960],[61.0830,7.5920],[61.0870,7.5890]],
+        description: 'Krevende topptur p\u00e5 grensen mellom L\u00e6rdal og Aurland med spektakul\u00e6r utsikt over fjordlandskapet. Bratte partier krever god kondisjon og erfaring. Fantastisk nedkj\u00f8ring p\u00e5 v\u00e5ren.',
         tips: 'Start tidlig for best f\u00f8re. Vurder skredfare n\u00f8ye i nordsiden.'
     },
     {
         id: 3, name: 'Molden', altitude: 1116, area: 'Luster, Sogn',
         distance: 6, elevationGain: 850, difficulty: 'enkel',
         season: 'Jan\u2013Apr', aspect: 'V/NV',
-        lat: 61.3850, lng: 7.3900,
-        route: [[61.3750,7.3800],[61.3780,7.3840],[61.3810,7.3870],[61.3830,7.3890],[61.3850,7.3900]],
-        description: 'En av de mest popul\u00e6re toppturene i Sogn. Ruten fra Kriken er godt kjennemerket. Fra toppen ser du hele Lustrafjorden, Jostedalsbreen og Hurrungane. Perfekt f\u00f8rstetur.',
-        tips: 'Parker ved Molden skisenter. Godt merket rute hele veien.'
+        lat: 61.3452, lng: 7.3163,
+        img: 'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=400&h=200&fit=crop',
+        route: [[61.3300,7.3050],[61.3340,7.3080],[61.3370,7.3100],[61.3400,7.3120],[61.3430,7.3145],[61.3452,7.3163]],
+        description: 'En av de mest popul\u00e6re toppturene i Sogn. Ruten fra Krossen er godt kjennemerket. Fra toppen ser du hele Lustrafjorden, Jostedalsbreen og Hurrungane. Perfekt f\u00f8rstetur p\u00e5 randonee.',
+        tips: 'Parker ved Krossen (avkj\u00f8ring fra Rv55 mellom Hafslo og Marifjr\u00f8ra). Godt merket rute hele veien.'
     },
     {
         id: 4, name: 'Store Dyrhaugstinden', altitude: 2147, area: 'Hurrungane, Luster',
-        distance: 14, elevationGain: 1600, difficulty: 'krevende',
+        distance: 14, elevationGain: 1260, difficulty: 'krevende',
         season: 'Apr\u2013Jun', aspect: 'S\u00d8',
-        lat: 61.4700, lng: 7.8300,
-        route: [[61.4500,7.8100],[61.4550,7.8150],[61.4600,7.8200],[61.4650,7.8250],[61.4700,7.8300]],
-        description: 'Norges flotteste randonee-tur if\u00f8lge mange. Lang dag med krevende terreng i Hurrungane. Spektakul\u00e6r nedkj\u00f8ring. Krever alpint utstyr og breferdighet.',
-        tips: 'Start fra Turtagr\u00f8. Tidlig start er essensielt. Hjelm anbefales p\u00e5 de bratteste partiene.'
+        lat: 61.4620, lng: 7.8436,
+        img: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&h=200&fit=crop',
+        route: [[61.4230,7.8120],[61.4310,7.8180],[61.4390,7.8250],[61.4460,7.8320],[61.4540,7.8380],[61.4620,7.8436]],
+        description: 'Norges flotteste randonee-tur if\u00f8lge mange. Lang dag med krevende terreng i Hurrungane. Spektakul\u00e6r nedkj\u00f8ring fra 2147 moh. Krever alpint utstyr.',
+        tips: 'Start fra Turtagr\u00f8 (884 moh). Tidlig start er essensielt. Hjelm anbefales p\u00e5 de bratteste partiene.'
     },
     {
-        id: 5, name: 'Sk\u00e5lat\u00e5rnet', altitude: 1848, area: 'Loen, Stryn',
-        distance: 16, elevationGain: 1800, difficulty: 'krevende',
+        id: 5, name: 'Sk\u00e5la', altitude: 1848, area: 'Loen, Stryn',
+        distance: 16, elevationGain: 1848, difficulty: 'krevende',
         season: 'Mar\u2013Jun', aspect: 'S/SV',
-        lat: 61.8400, lng: 6.8700,
-        route: [[61.8650,6.8500],[61.8600,6.8550],[61.8550,6.8600],[61.8500,6.8650],[61.8450,6.8680],[61.8400,6.8700]],
-        description: 'Ikonisk tur til det ber\u00f8mte Sk\u00e5lat\u00e5rnet, Norges h\u00f8yeste fristående steinbygning. Lang og krevende dag p\u00e5 ski med fantastisk utsikt. Overnattingsmulighet i t\u00e5rnet.',
-        tips: 'Start fra Tjugen i Loen. Sv\u00e6rt lang dag \u2014 mange velger \u00e5 overnatte.'
+        lat: 61.8438, lng: 6.9075,
+        img: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=400&h=200&fit=crop',
+        route: [[61.8690,6.8700],[61.8640,6.8770],[61.8590,6.8830],[61.8550,6.8890],[61.8500,6.8950],[61.8470,6.9010],[61.8438,6.9075]],
+        description: 'Ikonisk tur til Sk\u00e5lat\u00e5rnet, Norges h\u00f8yeste frist\u00e5ende steinbygning (1848 moh). Lang og krevende dag fra fjordniv\u00e5 til toppen. Overnattingsmulighet i t\u00e5rnet.',
+        tips: 'Start fra Tjugen ved Hotel Alexandra i Loen. Sv\u00e6rt lang dag \u2014 mange velger \u00e5 overnatte i t\u00e5rnet.'
     },
     {
-        id: 6, name: 'Vogga', altitude: 1543, area: 'Fjordane, J\u00f8lster',
+        id: 6, name: 'Vogga', altitude: 1543, area: 'Sunnfjord, J\u00f8lster',
         distance: 9, elevationGain: 1200, difficulty: 'middels',
         season: 'Feb\u2013Apr', aspect: 'N',
-        lat: 61.5200, lng: 6.3600,
-        route: [[61.5050,6.3500],[61.5100,6.3530],[61.5130,6.3560],[61.5170,6.3580],[61.5200,6.3600]],
-        description: 'Flott topptur med utsikt mot J\u00f8lstravatnet og Sunnfjord-alpene. Moderate vanskelighetsgrad med noen brattere partier. God sn\u00f8sikkerhet p\u00e5 nordsiden.',
-        tips: 'Start fra Skei. God parkeringsmulighet ved veien.'
+        lat: 61.4500, lng: 6.3300,
+        img: 'https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=400&h=200&fit=crop',
+        route: [[61.4200,6.3100],[61.4280,6.3150],[61.4340,6.3200],[61.4400,6.3240],[61.4450,6.3270],[61.4500,6.3300]],
+        description: 'Flott topptur med utsikt mot J\u00f8lstravatnet og Sunnfjord-alpene. Moderat vanskelighetsgrad med noen brattere partier. God sn\u00f8sikkerhet p\u00e5 nordsiden.',
+        tips: 'Start fra Skei i J\u00f8lster. God parkeringsmulighet ved veien.'
     },
     {
-        id: 7, name: 'Lodalskåpa', altitude: 2083, area: 'Loen, Stryn',
+        id: 7, name: 'Lodal\u0073k\u00e5pa', altitude: 2083, area: 'Jostedalsbreen, Stryn/Luster',
         distance: 18, elevationGain: 2050, difficulty: 'krevende',
         season: 'Apr\u2013Jun', aspect: '\u00d8/S\u00d8',
-        lat: 61.8100, lng: 7.0200,
-        route: [[61.8400,7.0000],[61.8350,7.0050],[61.8300,7.0100],[61.8200,7.0150],[61.8100,7.0200]],
-        description: 'Jostedalsbreen nasjonalparks h\u00f8yeste topp. Ekstremt krevende og lang tur som krever breerfaring, tau og isøks. Belønningen er en av Vestlandets beste utsikter.',
-        tips: 'Krever breerfaring. Anbefales med f\u00f8rer f\u00f8rste gang.'
+        lat: 61.7910, lng: 7.0050,
+        img: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=400&h=200&fit=crop',
+        route: [[61.8350,6.9800],[61.8270,6.9850],[61.8190,6.9890],[61.8100,6.9930],[61.8010,6.9980],[61.7910,7.0050]],
+        description: 'Jostedalsbreen nasjonalparks h\u00f8yeste topp (2083 moh). Ekstremt krevende og lang tur som krever breerfaring, tau og is\u00f8ks. Belønningen er en av Vestlandets beste utsikter.',
+        tips: 'Start fra B\u00f8dalen via Loen. Krever breerfaring. Anbefales med f\u00f8rer f\u00f8rste gang.'
     },
     {
         id: 8, name: 'Hest', altitude: 1390, area: 'Vik, Sogn',
         distance: 7, elevationGain: 1050, difficulty: 'middels',
         season: 'Feb\u2013Apr', aspect: 'NV',
-        lat: 61.0700, lng: 6.5800,
-        route: [[61.0550,6.5700],[61.0600,6.5730],[61.0640,6.5760],[61.0670,6.5780],[61.0700,6.5800]],
+        lat: 61.0670, lng: 6.5530,
+        img: 'https://images.unsplash.com/photo-1491002052546-bf38f186af56?w=400&h=200&fit=crop',
+        route: [[61.0470,6.5350],[61.0510,6.5390],[61.0550,6.5430],[61.0590,6.5460],[61.0630,6.5490],[61.0670,6.5530]],
         description: 'Klassisk topptur i Vik med panoramautsikt over Sognefjorden. Ruten er variert med skog nederst og \u00e5pent terreng h\u00f8yere opp. Nydelig nedkj\u00f8ring i pudder.',
-        tips: 'Parkering langs veien mot Fresvik. F\u00f8lg merket sti til skoggrensen.'
+        tips: 'Start fra Vik sentrum eller langs veien mot Fresvik. F\u00f8lg merket sti til skoggrensen.'
     },
     {
         id: 9, name: 'Ceciliekruna', altitude: 1775, area: 'Hurrungane, Luster',
-        distance: 12, elevationGain: 1400, difficulty: 'krevende',
+        distance: 12, elevationGain: 890, difficulty: 'krevende',
         season: 'Mar\u2013Jun', aspect: 'N/NV',
-        lat: 61.4800, lng: 7.7800,
-        route: [[61.4600,7.7600],[61.4650,7.7650],[61.4700,7.7700],[61.4750,7.7750],[61.4800,7.7800]],
+        lat: 61.4650, lng: 7.7700,
+        img: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=200&fit=crop',
+        route: [[61.4230,7.8120],[61.4310,7.8050],[61.4380,7.7960],[61.4450,7.7880],[61.4550,7.7790],[61.4650,7.7700]],
         description: 'En av de store klassikerne i Hurrungane. Teknisk krevende med eksponerte partier. Belønningen er en av Norges mest dramatiske utsikter, omgitt av 2000-meters topper.',
-        tips: 'Start fra Turtagr\u00f8. Stegjern og isøks kan v\u00e6re n\u00f8dvendig.'
+        tips: 'Start fra Turtagr\u00f8 (884 moh). Stegjern og is\u00f8ks kan v\u00e6re n\u00f8dvendig.'
     },
     {
-        id: 10, name: 'Fanaråken', altitude: 2068, area: 'Jotunheimen, Luster',
-        distance: 15, elevationGain: 1500, difficulty: 'krevende',
+        id: 10, name: 'Fanar\u00e5ken', altitude: 2068, area: 'Jotunheimen, Luster',
+        distance: 15, elevationGain: 700, difficulty: 'krevende',
         season: 'Apr\u2013Jun', aspect: 'S/SV',
-        lat: 61.5200, lng: 7.9000,
-        route: [[61.5000,7.8800],[61.5050,7.8840],[61.5100,7.8900],[61.5150,7.8950],[61.5200,7.9000]],
-        description: 'H\u00f8yt og majestetisk med DNT-hytte p\u00e5 toppen. Spektakul\u00e6r 360-graders utsikt over hele Jotunheimen. Lang dag, men godt merket rute. Mulighet for overnatting.',
-        tips: 'DNT-hytte p\u00e5 toppen (betjent i sesong). Flott \u00e5 kombinere med overnatting.'
+        lat: 61.5167, lng: 7.9089,
+        img: 'https://images.unsplash.com/photo-1434394354979-a235cd36269d?w=400&h=200&fit=crop',
+        route: [[61.4990,7.8780],[61.5030,7.8840],[61.5060,7.8890],[61.5090,7.8940],[61.5130,7.9010],[61.5167,7.9089]],
+        description: 'H\u00f8yt og majestetisk med DNT-hytte p\u00e5 toppen (2068 moh). Spektakul\u00e6r 360-graders utsikt over hele Jotunheimen. Mulighet for overnatting p\u00e5 Fanar\u00e5khytta.',
+        tips: 'Start fra Sognefjellshytta eller Turtagr\u00f8. DNT-hytte p\u00e5 toppen (betjent i sesong). Flott \u00e5 kombinere med overnatting.'
     },
     {
         id: 11, name: 'Ramnaberg', altitude: 1358, area: 'Leikanger, Sogn',
         distance: 6.5, elevationGain: 1050, difficulty: 'middels',
         season: 'Jan\u2013Apr', aspect: 'N\u00d8',
-        lat: 61.1750, lng: 6.8100,
-        route: [[61.1600,6.8000],[61.1650,6.8030],[61.1700,6.8060],[61.1750,6.8100]],
+        lat: 61.1690, lng: 6.8200,
+        img: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&h=200&fit=crop',
+        route: [[61.1870,6.8100],[61.1830,6.8120],[61.1790,6.8150],[61.1740,6.8170],[61.1690,6.8200]],
         description: 'Kort men bratt topptur med fantastisk utsikt over Sognefjorden og Leikanger. Popul\u00e6r blant lokale. Rask tilgang til fjellet fra bygda.',
-        tips: 'Start fra Hermansverk. Kan v\u00e6re bratt i starten.'
+        tips: 'Start fra Hermansverk. Bratt i starten, men flott utsikt allerede fr\u00e5 halvveis.'
     },
     {
         id: 12, name: 'Storehaugen', altitude: 1170, area: 'Sogndal, Sogn',
         distance: 5, elevationGain: 900, difficulty: 'enkel',
         season: 'Jan\u2013Apr', aspect: 'V/NV',
-        lat: 61.2200, lng: 7.0500,
-        route: [[61.2100,7.0600],[61.2130,7.0570],[61.2160,7.0540],[61.2200,7.0500]],
-        description: 'N\u00e6rturen for Sogndal! Kort tilkomst og fin utsikt. Perfekt for en halvdagstur p\u00e5 ski. Trygg tur med lite skredfare p\u00e5 normalruten.',
+        lat: 61.2100, lng: 7.0500,
+        img: 'https://images.unsplash.com/photo-1485160497022-3e09382fb310?w=400&h=200&fit=crop',
+        route: [[61.2260,7.0710],[61.2220,7.0660],[61.2180,7.0600],[61.2140,7.0550],[61.2100,7.0500]],
+        description: 'N\u00e6rturen for Sogndal! Kort tilkomst fra Hodlekve og fin utsikt over Sognefjorden. Perfekt for en halvdagstur p\u00e5 ski. Trygg tur med lite skredfare p\u00e5 normalruten.',
         tips: 'Parker ved Hodlekve skisenter. Enkelt \u00e5 kombinere med alpint.'
     }
 ];
@@ -1671,7 +1794,13 @@ function renderToppturList() {
         if (t.distance) statsHtml += '<span class="tt-stat">\u27F6 <span class="tt-stat-val">' + t.distance + ' km</span></span>';
         statsHtml += '<span class="tt-stat">\u2B06 <span class="tt-stat-val">' + t.altitude + ' m</span></span>';
 
+        const imgHtml = t.img
+            ? '<img class="tt-img" src="' + t.img + '" alt="' + t.name + '" loading="lazy" onerror="this.outerHTML=\'<div class=tt-img-placeholder>' + icon + '</div>\'">'
+            : '<div class="tt-img-placeholder">' + icon + '</div>';
+
         return '<div class="topptur-card" style="' + borderStyle + '" onclick="showToppturDetail(' + t.id + ',\'' + t.source + '\')">' +
+            imgHtml +
+            '<div class="tt-body">' +
             '<div class="tt-header">' +
                 '<span class="tt-icon">' + icon + '</span>' +
                 '<div><div class="tt-title">' + t.name + ' (' + t.altitude + ' moh)</div>' +
@@ -1681,6 +1810,7 @@ function renderToppturList() {
             '<div class="tt-badges">' +
                 getDifficultyBadge(t.difficulty) +
                 (t.season ? '<span class="tt-badge tt-badge-season">' + t.season + '</span>' : '') +
+            '</div>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -1719,8 +1849,13 @@ function showToppturDetail(id, source) {
         actionsHtml += '<button class="tour-btn" onclick="planFromTopptur(' + t.id + ')">\u270E Planlegg rute</button>';
     }
 
+    const detailImgHtml = t.img
+        ? '<img class="tt-detail-img" src="' + t.img + '" alt="' + t.name + '" onerror="this.style.display=\'none\'">'
+        : '';
+
     detail.innerHTML =
         '<button class="tt-detail-back" onclick="renderToppturList()">\u2190 Tilbake til listen</button>' +
+        detailImgHtml +
         '<div class="tt-detail-name">' + icon + ' ' + t.name + '</div>' +
         '<div class="tt-detail-area">' + t.area + ' &middot; ' + getDifficultyBadge(t.difficulty) + '</div>' +
         '<div class="tt-detail-stats">' + statsHtml + '</div>' +
@@ -1819,6 +1954,24 @@ document.getElementById('btnUndoPoint').addEventListener('click', undoTourPoint)
 document.getElementById('btnClearRoute').addEventListener('click', clearTourRoute);
 document.getElementById('toggleSteepness').addEventListener('click', toggleSteepnessLayer);
 document.getElementById('toggleAvalanche').addEventListener('click', toggleAvalancheLayer);
+
+// Kartverket Friluftsruter WMS toggle
+function toggleFriluftsruterLayer() {
+    friluftsruterVisible = !friluftsruterVisible;
+    document.getElementById('toggleFriluftsruter').classList.toggle('on', friluftsruterVisible);
+    if (friluftsruterVisible && !friluftsruterLayer) {
+        friluftsruterLayer = L.tileLayer.wms('https://wms.geonorge.no/skwms1/wms.friluftsruter2', {
+            layers: 'Fotrute,Skiloype,Sykkelrute,Annen_rute',
+            format: 'image/png', transparent: true, opacity: 0.7,
+            attribution: 'Friluftsruter: Kartverket', maxZoom: 18, zIndex: 410
+        }).addTo(map);
+    } else if (friluftsruterVisible && friluftsruterLayer) {
+        friluftsruterLayer.addTo(map);
+    } else if (!friluftsruterVisible && friluftsruterLayer) {
+        map.removeLayer(friluftsruterLayer);
+    }
+}
+document.getElementById('toggleFriluftsruter').addEventListener('click', toggleFriluftsruterLayer);
 
 // Mobile
 var controlsVisible = true;
